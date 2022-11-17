@@ -27,6 +27,19 @@ def auto_canny(image, mask, sigma=0.33):
 	# return the edged image
 	return edged
 
+def adjust_gamma(img, gamma=1.0):
+	invGamma = 1.0 / gamma
+	table = np.array([((i / 255.0) ** invGamma) * 255
+		for i in np.arange(0, 256)]).astype(np.uint8)
+
+	return cv.LUT(img, table)
+
+def f(img, alpha=2.0, beta=-200):
+	alpha = np.array([alpha], dtype=np.uint16)
+	
+	img = np.clip((img * alpha) + beta, 0, 255).astype(np.uint8)
+	return img
+
 def show_image(imgs, cmap='gray', cols=2):
 	n_imgs = len(imgs)
 	rows = (n_imgs // cols) + 1
