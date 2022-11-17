@@ -1,6 +1,6 @@
 import cv2 as cv
 from skimage.morphology import skeletonize
-from utils import find_file, auto_canny, show_image
+from utils import find_file, auto_canny, show_image, adjust_gamma, f
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
@@ -11,6 +11,30 @@ def nothing(x):
 def remove_small_cc(*args):
     print(args)
     
+def DoG(img, ksize, s1, s2):
+    low = cv.GaussianBlur(img, ksize, s1)
+    high = cv.GaussianBlur(img, ksize, s2)
+
+    return low - high
+
+#https://stackoverflow.com/questions/65666507/local-contrast-enhancement-for-digit-recognition-with-cv2-pytesseract
+def gain_division(img, ksize):
+    # Get local maximum:
+    kernelSize = 15
+    maxKernel = cv.getStructuringElement(cv.MORPH_RECT, (ksize, ksize))
+    localMax = cv.morphologyEx(img, cv.MORPH_CLOSE, maxKernel, None, None, 1, cv.BORDER_REFLECT101)
+
+    # Perform gain division
+    gainDivision = np.where(localMax == 0, 0, (img/localMax))
+
+    # Clip the values to [0,255]
+    gainDivision = np.clip((255 * gainDivision), 0, 255)
+
+    # Convert the mat type from float to uint8:
+    gainDivision = gainDivision.astype("uint8")
+
+    return gainDivision
+
 
 matplotlib.use('TKAgg')
 
@@ -36,56 +60,89 @@ mask = cv.imread(mask_path, cv.COLOR_BGR2GRAY)
 
 segmented = cv.bitwise_and(img, img, mask=mask)
 
-hls = cv.cvtColor(segmented, cv.COLOR_BGR2HLS)
-h, l, s = cv.split(hls)
+#segmented = segmented.astype(np.float32)
+
+vals = segmented[segmented > 0]
+
+print(np.median(vals))
+print(np.std(vals))
+print(np.max(vals))
+print(np.min(vals))
+
+print(np.percentile(vals, 95))
+print(np.percentile(vals, 5))
+
+
+f_img = f(segmented, alpha=3.0, beta=-450)
+
+g_img = adjust_gamma(f_img, 0.35)
+
+#g_img = cv.GaussianBlur(g_img, (3, 3), 10)
 
 ker = np.array([[0, -1, 0],
                 [-1, 5,-1],
                 [0, -1, 0]])
 
-s = cv.filter2D(s, -1, ker)
+#g_img = cv.filter2D(g_img, -1, ker)
 
-gamma = 1.6 
+hls = cv.cvtColor(g_img, cv.COLOR_BGR2HLS)
+h,l,s = cv.split(hls)
 
-s = ((s/255.)**(1/gamma)) * 255
+l = gain_division(l, 10)
 
-s = cv.normalize(s, None, 0, 255, cv.NORM_MINMAX).astype('uint8')
-
-s = cv.GaussianBlur(s, (5, 5), 20)
-
+#show_image([l, g_img[..., ::-1], thr])
 
 #canny = auto_canny(s, mask)
 
-dxdy = cv.Sobel(s, cv.CV_32F, 0, 1)
+#dxdy = cv.Sobel(s, cv.CV_32F, 0, 1)
 
-show_image([segmented[..., ::-1], s, dxdy])
+#show_image([segmented[..., ::-1], s, dxdy])
 
-"""
-canny_inv = cv.bitwise_not(canny)
-
-res = cv.bitwise_and(mask, mask, mask=canny_inv)
-
-ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (3, 3))
-gradient = cv.morphologyEx(s, cv.MORPH_GRADIENT, ker)
-
-#_, gradient = cv.threshold(gradient, 10, 255, cv.THRESH_BINARY)
-"""
 
 """
 cv.namedWindow('Window')
 
-cv.createTrackbar('Area', 'Window', 0, 100, nothing)
-cv.createTrackbar('Thr1', 'Window', 0, 255, nothing)
-cv.createTrackbar('Thr2', 'Window', 0, 255, nothing)
+cv.createTrackbar('Sigma1', 'Window', 0, 500, nothing)
+cv.createTrackbar('Sigma2', 'Window', 0, 500, nothing)
+#cv.createTrackbar('Ksize', 'Window', 3, 21, nothing)
+"""
 
+#clahe = cv.createCLAHE(clipLimit=0.1)
+#l = clahe.apply(l) 
+
+
+_, thr = cv.threshold(l, 0, 255, cv.THRESH_OTSU)
+
+#thr = cv.adaptiveThreshold(l, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 7, 0)
+
+_, labels, stats, _ = cv.connectedComponentsWithStatsWithAlgorithm(thr, 4, cv.CV_16U, cv.CCL_DEFAULT)
+
+for label, stat in enumerate(stats):
+    if stat[cv.CC_STAT_AREA] < 25:
+        labels[labels == label] = 0
+
+labels[labels > 0] = 255
+
+labels = labels.astype(np.uint8)
+
+ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (3, 3))
+
+morph = cv.morphologyEx(labels, cv.MORPH_CLOSE, ker)
+
+#blur = cv.bilateralFilter(l, 5, 30, 30) 
+#res = cv.ximgproc.anisotropicDiffusion(np.dstack((l, l, l)), 0.0075, 250, 1000)
+show_image([l, g_img[..., ::-1], labels, morph])
+
+"""
 while True:
-    cv.imshow('Window', canny)
+    cv.imshow('Window', dog)
 
-    thr1 = cv.getTrackbarPos('Thr1', 'Window')
-    thr2 = cv.getTrackbarPos('Thr2', 'Window')
-    area = cv.getTrackbarPos('Area', 'Window')
+    s1 = cv.getTrackbarPos('Sigma1', 'Window')
+    s2 = cv.getTrackbarPos('Sigma2', 'Window')
+    #ksize = cv.getTrackbarPos('Ksize', 'Window')
 
-    #print(area)
+    dog = DoG(l, ksize, s1, s2)
+
     canny = cv.Canny(s, thr1, thr2)
 
     _, labels, stats, _ = cv.connectedComponentsWithStats(canny)
@@ -96,17 +153,10 @@ while True:
 
     labels[labels > 0] = 255
 
+
     k = cv.waitKey(20)
     if k == 27:
         break
 
 cv.destroyAllWindows()
 """
-#_, thr = cv.threshold(labels, 1, 255, cv.NORM_MINMAX)
-
-#show_image(labels)
-
-#show_image([img, s, canny, res])
-
-#plt.imshow(canny, cmap='gray')
-#plt.show()
