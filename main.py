@@ -20,7 +20,6 @@ def DoG(img, ksize, s1, s2):
 #https://stackoverflow.com/questions/65666507/local-contrast-enhancement-for-digit-recognition-with-cv2-pytesseract
 def gain_division(img, ksize):
     # Get local maximum:
-    kernelSize = 15
     maxKernel = cv.getStructuringElement(cv.MORPH_RECT, (ksize, ksize))
     localMax = cv.morphologyEx(img, cv.MORPH_CLOSE, maxKernel, None, None, 1, cv.BORDER_REFLECT101)
 
@@ -35,6 +34,14 @@ def gain_division(img, ksize):
 
     return gainDivision
 
+def IASF(img, window_size):
+    #gˆ(i, j) = a × gr(i, j) + b × g(i, j)
+    #gr(i, j) represents the output of the improved range filter
+    #a and b are the normalized weighted factors of the improved range filter 
+    #and the average filter respectively
+
+    return
+
 
 matplotlib.use('TKAgg')
 
@@ -44,7 +51,7 @@ mask_path = '/home/alebrasi/Documents/tesi/segmentate_prof/'
 mask_extension = 'bmp'
 image_extension = 'jpg'
 
-image_name = '109'
+image_name = '109R'
 
 
 mask_path = find_file(mask_path, f'{image_name}.{mask_extension}')
@@ -57,6 +64,9 @@ print(f'Mask path: {mask_path}')
 
 img = cv.imread(img_path)
 mask = cv.imread(mask_path, cv.COLOR_BGR2GRAY)
+
+ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
+mask = cv.morphologyEx(mask, cv.MORPH_DILATE, ker)
 
 segmented = cv.bitwise_and(img, img, mask=mask)
 
@@ -72,6 +82,7 @@ print(np.min(vals))
 print(np.percentile(vals, 95))
 print(np.percentile(vals, 5))
 
+segmented = cv.bilateralFilter(segmented, 9, 25, 25)
 
 f_img = f(segmented, alpha=3.0, beta=-450)
 
@@ -85,10 +96,16 @@ ker = np.array([[0, -1, 0],
 
 #g_img = cv.filter2D(g_img, -1, ker)
 
-hls = cv.cvtColor(g_img, cv.COLOR_BGR2HLS)
-h,l,s = cv.split(hls)
+#hls = cv.cvtColor(g_img, cv.COLOR_BGR2HLS)
+#h,l,s = cv.split(hls)
 
-l = gain_division(l, 10)
+l1 = cv.cvtColor(g_img, cv.COLOR_BGR2GRAY)
+
+clahe = cv.createCLAHE(clipLimit=2, tileGridSize=(30, 30))
+l = clahe.apply(l1)
+
+show_image([l1, l])
+#l = gain_division(l, 12)
 
 #show_image([l, g_img[..., ::-1], thr])
 
@@ -111,9 +128,9 @@ cv.createTrackbar('Sigma2', 'Window', 0, 500, nothing)
 #l = clahe.apply(l) 
 
 
-_, thr = cv.threshold(l, 0, 255, cv.THRESH_OTSU)
+#_, thr = cv.threshold(l, 0, 255, cv.THRESH_OTSU)
 
-#thr = cv.adaptiveThreshold(l, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 7, 0)
+thr = cv.adaptiveThreshold(l, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 5, 0)
 
 _, labels, stats, _ = cv.connectedComponentsWithStatsWithAlgorithm(thr, 4, cv.CV_16U, cv.CCL_DEFAULT)
 
@@ -125,9 +142,9 @@ labels[labels > 0] = 255
 
 labels = labels.astype(np.uint8)
 
-ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (3, 3))
+ker = cv.getStructuringElement(cv.MORPH_RECT, (3, 3))
 
-morph = cv.morphologyEx(labels, cv.MORPH_CLOSE, ker)
+morph = cv.morphologyEx(labels, cv.MORPH_OPEN, ker)
 
 #blur = cv.bilateralFilter(l, 5, 30, 30) 
 #res = cv.ximgproc.anisotropicDiffusion(np.dstack((l, l, l)), 0.0075, 250, 1000)
