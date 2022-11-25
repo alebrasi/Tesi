@@ -26,14 +26,17 @@ def remove_cc(img, area_thr, connectivity=8, algorithm=cv.CCL_DEFAULT):
     return labels.astype(np.uint8)
 
 def clahe_bgr(img, clip, grid_size):
-    hls = cv.cvtColor(img, cv.COLOR_BGR2HLS)
+    # TODO: vedere se tenere LAB o cambiare in HLS
+    hls = cv.cvtColor(img, cv.COLOR_BGR2LAB)
     h, l, s = cv.split(img)
 
     clahe = cv.createCLAHE(clipLimit=clip, tileGridSize=grid_size)
 
-    l = clahe.apply(l)
+    l = clahe.apply(s)
 
-    return cv.cvtColor(cv.merge([h, l, s]), cv.COLOR_HLS2BGR)
+    return l
+
+    #return cv.cvtColor(cv.merge([h, l, s]), cv.COLOR_HLS2BGR)
 
 # Automatic brightness and contrast optimization with optional histogram clipping
 def automatic_brightness_and_contrast(image, clip_hist_percent=1):
