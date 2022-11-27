@@ -1,5 +1,9 @@
 import cv2 as cv
 import numpy as np
+from utils import show_image
+import math
+from skimage.morphology import skeletonize
+import matplotlib.pyplot as plt
 
 def adjust_gamma(img, gamma=1.0):
 	invGamma = 1.0 / gamma
@@ -86,3 +90,80 @@ def automatic_brightness_and_contrast(image, clip_hist_percent=1):
 
     #auto_result = cv.convertScaleAbs(image, alpha=alpha, beta=beta)
     return (auto_result, alpha, beta)
+
+def locate_seed_line(img):
+    #img = cv.bitwise_not(img)##.astype(np.uint32)
+    """
+    img = img.astype(np.uint32) + 120
+    img = np.clip(img, 0, 255).astype(np.uint8)
+    """
+    show_image(img[..., ::-1])
+
+    img = ~cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+    img = cv.GaussianBlur(img, (3, 3), 0)
+    img = cv.adaptiveThreshold(img, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 5, -2)
+    show_image(img)
+    horizontal_ker = cv.getStructuringElement(cv.MORPH_RECT, (10, 1))
+    vertical_ker = cv.getStructuringElement(cv.MORPH_RECT, (1, 50))
+    horizontal_lines = cv.morphologyEx(img, cv.MORPH_OPEN, horizontal_ker)
+    vertical_lines = cv.morphologyEx(img, cv.MORPH_OPEN, vertical_ker)
+
+    show_image(horizontal_lines)
+
+    ker = cv.getStructuringElement(cv.MORPH_RECT, (5, 5))
+    horizontal_lines = cv.morphologyEx(horizontal_lines, cv.MORPH_CLOSE, ker)
+
+    show_image(horizontal_lines)
+
+    """
+    horizontal_ker = cv.getStructuringElement(cv.MORPH_RECT, (10, 4))
+    vertical_ker = cv.getStructuringElement(cv.MORPH_RECT, (4, 20))
+    horizontal_lines = cv.morphologyEx(horizontal_lines, cv.MORPH_CLOSE, horizontal_ker)
+    vertical_lines = cv.morphologyEx(vertical_lines, cv.MORPH_CLOSE, vertical_ker)
+    """
+
+    horizontal_lines = remove_cc(horizontal_lines, 100)
+
+    _, labels, stats, _ =  cv.connectedComponentsWithStatsWithAlgorithm(horizontal_lines, 8, cv.CV_16U, cv.CCL_DEFAULT)
+
+    for label, stat in enumerate(stats):
+        if stat[cv.CC_STAT_AREA] > 250:
+            labels[labels == label] = 0
+
+    labels[labels > 0] = 255
+
+    labels = labels.astype(np.uint8)
+
+    show_image(labels)
+
+    horizontal_lines = labels
+
+    h, w = horizontal_lines.shape[:2]
+
+    contours, hierarchy = cv.findContours(horizontal_lines, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+    cnt = contours[0]
+    rows,cols = horizontal_lines.shape[:2]
+    [vx,vy,x,y] = cv.fitLine(cnt, cv.DIST_L2,0,0.01,0.01)
+
+    print(f'{vx}, {vy}, {x}, {y}')
+
+    lefty = int((-x*vy/vx) + y)
+    righty = int(((cols-x)*vy/vx)+y)
+    tmp = cv.cvtColor(img, cv.COLOR_GRAY2BGR)
+    cv.line(tmp,(cols-1,righty),(0,lefty),(0,255,0),1)
+
+    show_image(img)
+
+    ker = np.array([[-1, -1, 0], 
+                    [1, 1, -1],
+                    [-1, -1, 0]])
+
+    ker2 = np.flip(ker)
+
+    res = cv.morphologyEx(horizontal_lines, cv.MORPH_HITMISS, ker)
+    res2 = cv.morphologyEx(horizontal_lines, cv.MORPH_HITMISS, ker2)
+
+    res = res + res2
+    show_image(res)
+
+    return

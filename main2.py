@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import bm3d
 
 from crf import CRF
-from preprocess import adjust_gamma, automatic_brightness_and_contrast, clahe_bgr, remove_cc
+from preprocess import adjust_gamma, automatic_brightness_and_contrast, clahe_bgr, remove_cc, locate_seed_line
 from utils import find_file, show_image, f
 
 matplotlib.use('TKAgg')
@@ -16,11 +16,10 @@ mask_path = '/home/alebrasi/Documents/tesi/segmentate_prof/'
 mask_extension = 'bmp'
 image_extension = 'jpg'
 
-image_name = '109'
+image_name = '950'
 
 mask_path = find_file(mask_path, f'{image_name}.{mask_extension}')
 img_path = find_file(image_path, f'{image_name}.{image_extension}')
-
 
 print(f'Image path: {img_path}')
 print(f'Mask path: {mask_path}')
@@ -28,6 +27,9 @@ print(f'Mask path: {mask_path}')
 #img = cv.imread('/home/alebrasi/Documents/tesi/segmentate_prof/Sessione 1/Sessione 1.1/109.bmp')
 
 img = cv.imread(img_path)
+
+locate_seed_line(img)
+"""
 mask = cv.imread(mask_path, cv.COLOR_BGR2GRAY)
 
 # Morphological closing for filling small gaps in the mask
@@ -61,4 +63,5 @@ show_image([blurred, cc_rem])
 cc_rem[cc_rem == 255] = 1
 skeleton = skeletonize(cc_rem)
 
-show_image([(l, "Grayscale immagine rifinita"), (cc_rem, "threshold"), (skeleton, "skeleton maschera rifinita")])
+show_image([(l, 'Grayscale immagine rifinita'), (cc_rem, 'threshold'), (skeleton, 'skeleton maschera rifinita')])
+"""
