@@ -91,30 +91,44 @@ def automatic_brightness_and_contrast(image, clip_hist_percent=1):
     #auto_result = cv.convertScaleAbs(image, alpha=alpha, beta=beta)
     return (auto_result, alpha, beta)
 
+# TODO: Usare solo (rows, cols) o (h, w)
 def locate_seed_line(img):
+    """
+    Returns the straighten up image and the extreme points of the seed line
+
+    Parameters:
+    img: the image
+
+    Returns:
+    img: the straighten up image
+    left_pt: a tuple containing the left point of the seed line in (x, y) format
+    right_pt: a tuple containing the right point of the seed line in (x, y) format
+    """
     #img = cv.bitwise_not(img)##.astype(np.uint32)
     """
     img = img.astype(np.uint32) + 120
     img = np.clip(img, 0, 255).astype(np.uint8)
     """
-    show_image(img[..., ::-1])
-
+    #show_image(img[..., ::-1])
+    orig_img = img.copy()
+    
     img = ~cv.cvtColor(img, cv.COLOR_BGR2GRAY)
     img = cv.GaussianBlur(img, (3, 3), 0)
-    img = cv.adaptiveThreshold(img, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 5, -2)
-    show_image(img)
+    thresholded_img = cv.adaptiveThreshold(img, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 5, -2)
+    # Find horizontal lines with width >= 10px and height = 1px
     horizontal_ker = cv.getStructuringElement(cv.MORPH_RECT, (10, 1))
-    vertical_ker = cv.getStructuringElement(cv.MORPH_RECT, (1, 50))
-    horizontal_lines = cv.morphologyEx(img, cv.MORPH_OPEN, horizontal_ker)
-    vertical_lines = cv.morphologyEx(img, cv.MORPH_OPEN, vertical_ker)
+    horizontal_lines = cv.morphologyEx(thresholded_img, cv.MORPH_OPEN, horizontal_ker)
+    #vertical_ker = cv.getStructuringElement(cv.MORPH_RECT, (1, 50))
+    #vertical_lines = cv.morphologyEx(img, cv.MORPH_OPEN, vertical_ker)
 
-    show_image(horizontal_lines)
-
+    """
+    Morphological closing for joining nearby (on the y axis) horizontal lines
+    This nearby lines are found in correspondence of the edge of the glass slide
+    This is done in order to detect them and later removed
+    """
     ker = cv.getStructuringElement(cv.MORPH_RECT, (5, 5))
     horizontal_lines = cv.morphologyEx(horizontal_lines, cv.MORPH_CLOSE, ker)
-
-    show_image(horizontal_lines)
-
+    
     """
     horizontal_ker = cv.getStructuringElement(cv.MORPH_RECT, (10, 4))
     vertical_ker = cv.getStructuringElement(cv.MORPH_RECT, (4, 20))
@@ -122,19 +136,19 @@ def locate_seed_line(img):
     vertical_lines = cv.morphologyEx(vertical_lines, cv.MORPH_CLOSE, vertical_ker)
     """
 
-    horizontal_lines = remove_cc(horizontal_lines, 100)
-
     _, labels, stats, _ =  cv.connectedComponentsWithStatsWithAlgorithm(horizontal_lines, 8, cv.CV_16U, cv.CCL_DEFAULT)
 
+    # Removing thick or short (horizontal) lines
     for label, stat in enumerate(stats):
-        if stat[cv.CC_STAT_AREA] > 250:
+        w = stat[cv.CC_STAT_WIDTH]
+        h = stat[cv.CC_STAT_HEIGHT]
+        if w < 40 or h > 6:
             labels[labels == label] = 0
 
     labels[labels > 0] = 255
-
     labels = labels.astype(np.uint8)
 
-    show_image(labels)
+    #show_image(labels)
 
     horizontal_lines = labels
 
@@ -143,17 +157,49 @@ def locate_seed_line(img):
     contours, hierarchy = cv.findContours(horizontal_lines, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
     cnt = contours[0]
     rows,cols = horizontal_lines.shape[:2]
+    # Find the line that fits the set of horizontal lines
     [vx,vy,x,y] = cv.fitLine(cnt, cv.DIST_L2,0,0.01,0.01)
+    alpha = math.degrees(math.atan(vy/vx))
+    #print(f'{alpha}')
 
-    print(f'{vx}, {vy}, {x}, {y}')
+    q = y - ((vy/vx)*x) 
+    m = vy/vx
 
-    lefty = int((-x*vy/vx) + y)
-    righty = int(((cols-x)*vy/vx)+y)
-    tmp = cv.cvtColor(img, cv.COLOR_GRAY2BGR)
-    cv.line(tmp,(cols-1,righty),(0,lefty),(0,255,0),1)
+    left_x = 1 
+    right_x = 499
+    # y = mx + q
+    left_y = int((m * left_x) + q)
+    right_y = int((m * right_x) + q)
 
-    show_image(img)
+    #cv.line(img1, (left_x, left_y), (right_x, right_y),(0, 255, 0), 1)
+    #show_image(img1)
 
+    # Finding the rotation matrix and apply it in order to straighten up the image
+    M = cv.getRotationMatrix2D((h//2, w//2), alpha, 1.0)
+    img = cv.warpAffine(orig_img, M, (h, w))
+    img1 = img.copy()
+
+    #show_image(img1)
+
+    left_pt = np.array([left_x, left_y, 1])
+    right_pt = np.array([right_x, right_y, 1])
+
+    left_pt = np.int16(M@left_pt.T)
+    right_pt = np.int16(M@right_pt.T)
+
+    _, new_y = left_pt[:2]
+
+    right_pt = (right_pt[0], new_y)
+
+    """
+    cv.line(img1, left_pt, (right_pt[0], new_y), (255, 0, 0), 1)
+
+    seed_line = np.zeros_like(img)
+    cv.line(seed_line, left_pt, right_pt, 255, 1)
+    show_image(img1)
+
+    """
+    """
     ker = np.array([[-1, -1, 0], 
                     [1, 1, -1],
                     [-1, -1, 0]])
@@ -165,5 +211,6 @@ def locate_seed_line(img):
 
     res = res + res2
     show_image(res)
+    """
 
-    return
+    return img, left_pt, right_pt 
