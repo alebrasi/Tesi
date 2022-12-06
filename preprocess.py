@@ -91,7 +91,8 @@ def automatic_brightness_and_contrast(image, clip_hist_percent=1):
     #auto_result = cv.convertScaleAbs(image, alpha=alpha, beta=beta)
     return (auto_result, alpha, beta)
 
-# TODO: Usare solo (rows, cols) o (h, w)
+# TODO: Usare solo (rows, cols) o (h, w). 
+# Filtrare i risultati con houghlines
 def locate_seed_line(img):
     """
     Returns the straighten up image and the extreme points of the seed line
@@ -109,6 +110,9 @@ def locate_seed_line(img):
     img = img.astype(np.uint32) + 120
     img = np.clip(img, 0, 255).astype(np.uint8)
     """
+
+    SEED_LINE_OFFSET_PX = -5
+
     #show_image(img[..., ::-1])
     orig_img = img.copy()
     
@@ -148,7 +152,7 @@ def locate_seed_line(img):
     labels[labels > 0] = 255
     labels = labels.astype(np.uint8)
 
-    #show_image(labels)
+    show_image(labels)
 
     horizontal_lines = labels
 
@@ -187,8 +191,10 @@ def locate_seed_line(img):
     left_pt = np.int16(M@left_pt.T)
     right_pt = np.int16(M@right_pt.T)
 
-    _, new_y = left_pt[:2]
+    left_pt_x, new_y = left_pt[:2]
+    new_y = new_y + SEED_LINE_OFFSET_PX
 
+    left_pt = (left_pt[0], new_y)
     right_pt = (right_pt[0], new_y)
 
     """
