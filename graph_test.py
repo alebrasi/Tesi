@@ -7,6 +7,7 @@ import numpy as np
 from utils import show_image
 from skimage.morphology import skeletonize, medial_axis
 import queue
+from path_extraction.prune import prune_skeleton_branches
 
 
 def ravel_idx(x, y, width):
@@ -38,65 +39,13 @@ a = skel * distance
 
 skel1 = cv.cvtColor(skel1, cv.COLOR_GRAY2BGR)
 
-#seeds = [ (140, 162), (130, 252) ]
+seeds = [ (140, 162), (130, 252), (132, 367) ]
 
-s = (140, 162)
-#s = (90, 166)
-s = (130, 252)
-skel1[s] = (255, 0, 0)
+pruned = prune_skeleton_branches(seeds, skel.copy())
 
-prev_node = s
-cur_node = valid_neighbors(s, seed_neighbors, skel)[0]
-
-q = queue.Queue()
-cur_path = [cur_node]
-PATH_LEN_THR = 6
-
-visited = set()
-visited.add(prev_node)
-
-# Pruning
-while True:
-    n = valid_neighbors(cur_node, root_neighbors, skel)
-    tmp = [i for i in n if i in visited] 
-
-    for i in tmp:
-        n.remove(i)
-
-    visited.add(cur_node)
-
-    # Pixel is an element of the root when has only a valid neighbour
-    if len(n) == 1:
-        cur_path.append(cur_node)
-        cur_node = n[0]
-        continue
-
-    if is_tip(cur_node, skel):
-        cur_path.append(cur_node)
-        if len(cur_path) < PATH_LEN_THR:
-            for point in cur_path:
-                skel1[point] = (0, 0, 0)
-        cur_path = []
-        if not q.empty():
-            cur_node = q.get()
-            cur_path.append(cur_node)
-        else:
-            break
-        continue
- 
-    # Pixel is a node
-    cur_path = []
-    for node in n:
-        if node not in q.queue:
-            q.put(node)
-
-    if not q.empty():
-        cur_node = q.get()
-        cur_path.append(cur_node)
+show_image([pruned, skel])
 
 
-
-show_image([skel1, skel])
 
 """
 print(len(skel[skel != 0]))
