@@ -1,13 +1,18 @@
 import queue
 
+# TODO: Spostare tutto nella classe RootsExtraction
+
 # Moore neighbor
 def root_neighbors(p):
     y, x = p
-    return [(y-1, x-1), (y-1, x), (y-1, x+1), (y, x-1), (y, x+1), (y+1, x-1), (y+1, x), (y+1, x+1)]
+    return [(y-1, x-1), (y-1, x), (y-1, x+1), (y, x-1), (y, x), (y, x+1), (y+1, x-1), (y+1, x), (y+1, x+1)]
 
 def seed_neighbors(p):
     y, x = p
     return [(y, x-1), (y, x+1), (y+1, x-1), (y+1, x), (y+1, x+1)]
+
+def idx(y, x, s=3):
+    return (y * s) + x
 
 def valid_neighbors(p, neighbor_func, skel):
     """
@@ -16,7 +21,21 @@ def valid_neighbors(p, neighbor_func, skel):
     Parameters:
         p (tuple): The point
     """
-    return [ i for i in neighbor_func(p) if skel[i] ]
+
+    n = neighbor_func(p)
+    valid = [ skel[i] for i in n ]
+    valid[idx(1, 1)] = False
+
+    if valid[idx(0, 1)]:
+        valid[idx(0, 0)] = valid[idx(0, 2)] = False
+    if valid[idx(1, 0)]:
+        valid[idx(0, 0)] = valid[idx(2, 0)] = False
+    if valid[idx(2, 1)]:
+        valid[idx(2, 0)] = valid[idx(2, 2)] = False
+    if valid[idx(1, 2)]:
+        valid[idx(0, 2)] = valid[idx(2, 2)] = False
+    #return [ i for i in neighbor_func(p) if skel[i] ]
+    return [ n1 for i, n1 in enumerate(n) if valid[i] ]
 
 def is_tip(n, skel):
     """
@@ -42,8 +61,15 @@ def prune_skeleton_branches(seeds, skel, branch_threshold_len=6):
     """
     q = queue.Queue()
     visited = set()
+    tips = set()
     for s in seeds:
-        cur_node = valid_neighbors(s, seed_neighbors, skel)[0]
+        n1 = valid_neighbors(s, root_neighbors, skel)
+        # Get a random neighbor (in this case the last one in the array) and use it as starting point.
+        # Adds the others to the queue to explore
+        cur_node = n1.pop()
+        for n2 in n1:
+            q.put(n2)
+
         # Check if the first seed neighbor is already visited
         if cur_node in visited:
             break
@@ -55,11 +81,8 @@ def prune_skeleton_branches(seeds, skel, branch_threshold_len=6):
         # Pruning
         while True:
             n = valid_neighbors(cur_node, root_neighbors, skel)
-            tmp = [i for i in n if i in visited] 
-
-            for i in tmp:
-                n.remove(i)
-
+            n = [ i for i in n if i not in visited ]
+           
             visited.add(cur_node)
 
             # Pixel is an element of the root when has only a valid neighbour
@@ -71,6 +94,7 @@ def prune_skeleton_branches(seeds, skel, branch_threshold_len=6):
             # Check if the pixel is a tip of the branch
             if is_tip(cur_node, skel):
                 cur_path.append(cur_node)
+                tips.add(cur_node)
                 # Prune of the branch path if it matches the length threshold
                 if len(cur_path) < branch_threshold_len:
                     for point in cur_path:
@@ -93,4 +117,4 @@ def prune_skeleton_branches(seeds, skel, branch_threshold_len=6):
                 cur_node = q.get()
                 cur_path.append(cur_node)
 
-    return skel
+    return tips, skel
