@@ -10,6 +10,7 @@ import queue
 import math
 from path_extraction.prune import prune_skeleton_branches
 from path_extraction.extract_roots import extract_plants_roots
+from path_extraction.algorithm import RootsExtraction
 
 
 def ravel_idx(x, y, width):
@@ -48,26 +49,89 @@ def lstsq_from_path(path):
 def angle_between_two_slopes(m1, m2):
     return math.degrees(math.atan((m1 - m2) / 1 + (m1 * m2)))
 
+def points_to_vector(p1, p2):
+    """
+    Returns a normalized vector given two points
+
+    Parameters:
+        p1: Source point
+        p2: Destination point
+
+    Returns:
+        A numpy array containing the normalized vector
+    """
+
+    p1 = np.array(p1)
+    p2 = np.array(p2)
+
+    v = p1 - p2
+    return v / np.linalg.norm(v)
+
+def angle_between_vectors(v1, v2):
+    """
+    Returns the angle between two vectors normalized vectors
+    https://www.euclideanspace.com/maths/algebra/vectors/angleBetween/
+
+    Parameters:
+        v1: First normalized vector
+        v2: Second normalized vector
+    """
+
+    """
+    Alternativa: 
+    https://www.mathworks.com/matlabcentral/answers/180131-how-can-i-find-the-angle-between-two-vectors-including-directional-information
+    a = np.cross(v1, v2)
+    b = np.dot(v1, v2)
+    print(math.degrees(np.arctan2(a, b)))
+    """
+
+    v1_x, v1_y = v1[:2]
+    v2_x, v2_y = v2[:2]
+
+    angle = math.atan2(v2_y, v2_x) - math.atan2(v1_y, v1_x)
+    angle = math.degrees(angle)
+
+    return angle
+
+def boolean_matrix_to_rgb(m):
+    m = m.copy().astype(np.uint8)
+    m[m == 1] = 255
+    return cv.cvtColor(m, cv.COLOR_GRAY2BGR)
+
+
+def walk_to_first_available_node(n, neighbor_func=root_neighbors):
+    path = []
+
+    return path
+
 skel = cv.imread('skel.png', cv.COLOR_BGR2GRAY)
+# TODO: Controllare il comportamento di medial_axis
 skel, distance = medial_axis(skel, return_distance=True)
 
-skel1 = skel.copy().astype(np.uint8)
-skel1[skel1 == 1] = 255
+
+skel1 = boolean_matrix_to_rgb(skel)
 
 a = skel * distance
 
-skel1 = cv.cvtColor(skel1, cv.COLOR_GRAY2BGR)
-
 seeds = [ (140, 162), (130, 252), (132, 367) ]
 
-pruned = prune_skeleton_branches(seeds, skel.copy())
+# Skeleton branch prune
+_, pruned = prune_skeleton_branches(seeds, skel.copy())
 
-show_image([pruned, skel1])
+# Done just for retrieving the valid root tips.
+# Can be swapped with a more efficient function
+tips, pruned = prune_skeleton_branches(seeds, pruned) 
+
+skel2 = boolean_matrix_to_rgb(pruned)
+
+for tip in tips:
+    skel2[tip] = (0, 255, 0)
+
+show_image([skel2, skel1])
 
 #extract_plants_roots(seeds, pruned)
 
-s = seeds[0]
-n = seed_neighbors(s)[0]
+"""
 path = [(161, 170), (160, 169), (159, 169), (158, 169), (157, 168), (156, 168), (155, 168), 
         (155, 168), (154, 168), (153, 167), (152, 167), (151, 167), (150, 167)]
 
@@ -104,15 +168,35 @@ print(f'Mean error 2: {mean_error2}')
 
 cv.line(skel1, (x1, y1), (x2, y2), (0, 255, 0))
 cv.line(skel1, (x1, y1_1), (x2, y2_1), (255, 0, 0))
-cv.line(skel1, (x1, y1_2), (x2, y2_2), (0, 0, 255))
+#cv.line(skel1, (x1, y1_2), (x2, y2_2), (0, 0, 255))
 show_image(skel1)
 
+print(angle_between_vectors(v1, v2))
+"""
 
-"""
-while True:
-    
-    pass
-"""
+s = seeds[0]
+s = (157, 168)
+alg = RootsExtraction(pruned, distance)
+stem_path, paths = alg.extract_roots(s)
+colors = [(255, 0, 0), (0,255,0), (0, 0, 255)]
+print(len(paths))
+skel1 = boolean_matrix_to_rgb(pruned)
+
+for i, p in enumerate(stem_path):
+    skel1[p] = colors[0]
+
+show_image(skel1)
+
+for path in paths:
+    for i, p in enumerate(path):
+        _, p = p
+        #print(f'{i}): {p}')
+        for point in p:
+            skel1[point] = colors[i%len(colors)]
+
+
+show_image(skel1)
+#show_image(pruned * distance, cmap='magma')
 
 """
 print(len(skel[skel != 0]))
