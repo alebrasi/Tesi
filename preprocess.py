@@ -111,7 +111,7 @@ def locate_seed_line(img):
     img = np.clip(img, 0, 255).astype(np.uint8)
     """
 
-    SEED_LINE_OFFSET_PX = -5
+    SEED_LINE_OFFSET_PX = -10
 
     #show_image(img[..., ::-1])
     orig_img = img.copy()
