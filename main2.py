@@ -1,5 +1,6 @@
 import cv2 as cv
-from skimage.morphology import skeletonize
+from skimage.morphology import skeletonize, medial_axis
+from skimage.graph import pixel_graph
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -18,7 +19,7 @@ mask_extension = 'bmp'
 image_extension = 'jpg'
 
 # 88R, 89R SUS
-image_name = '109R'
+image_name = '109'
 
 mask_path = find_file(mask_path, f'{image_name}.{mask_extension}')
 img_path = find_file(image_path, f'{image_name}.{image_extension}')
@@ -30,6 +31,7 @@ print(f'Mask path: {mask_path}')
 
 img = cv.imread(img_path)
 
+# FIXME: In locate seed line aggiungere inRange per individuare solo le righe nere
 img, left_pt, right_pt = locate_seed_line(img)
 
 h, w = img.shape[:2]
@@ -108,19 +110,43 @@ show_image((tmp, 'Seeds location'))
 cv.imwrite('res.png', cc_rem)
 show_image([blurred, cc_rem])
 # Mask normalization for skeletonize
+cv.imwrite('skel.png', cc_rem)
 cc_rem[cc_rem == 255] = 1
+
 skeleton = skeletonize(cc_rem)
 
+graph, nodes = pixel_graph(skeleton, connectivity=8)
+print(graph.shape)
+
+for node in nodes[:10]:
+    print(np.unravel_index(node, (500, 500)))
+
+print(graph)
+show_image(skeleton)
+
+
+"""
 res = cv.bitwise_and(img, img, mask=cc_rem)
 
 show_image(res)
 
 show_image([(l, 'Grayscale immagine rifinita'), (cc_rem, 'threshold'), (skeleton, 'skeleton maschera rifinita')])
-
+"""
 # Per il prune dello scheletro guardare nella cartella download 'Skeleton2Graph'
 # https://ehu.eus/ccwintco/index.php?title=Skeletonization,_skeleton_pruning_and_simple_skeleton_graph_construction_example_in_Matlab
 # http://www.ehu.es/ccwintco/uploads/a/a0/Skeleton2Graph.zip
 
 # Codice originale
 # https://cis.temple.edu/~latecki/Programs/BaiSkeletonPruningDCE.zip
+"""
+skel, distance = medial_axis(cc_rem, return_distance=True)
 
+# Distance to the background for pixels of the skeleton
+dist_on_skel = distance * skel
+
+show_image(dist_on_skel, cmap='magma')
+
+dist = cv.distanceTransform(cc_rem, cv.DIST_L2, cv.DIST_MASK_PRECISE)
+
+show_image(dist)
+"""
