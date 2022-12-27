@@ -43,6 +43,7 @@ def clahe_bgr(img, clip, grid_size):
     #return cv.cvtColor(cv.merge([h, l, s]), cv.COLOR_HLS2BGR)
 
 # Automatic brightness and contrast optimization with optional histogram clipping
+# https://stackoverflow.com/questions/56905592/automatic-contrast-and-brightness-adjustment-of-a-color-photo-of-a-sheet-of-pape
 def automatic_brightness_and_contrast(image, clip_hist_percent=1):
     gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
     
@@ -91,9 +92,10 @@ def automatic_brightness_and_contrast(image, clip_hist_percent=1):
     #auto_result = cv.convertScaleAbs(image, alpha=alpha, beta=beta)
     return (auto_result, alpha, beta)
 
-# TODO: Usare solo (rows, cols) o (h, w). 
-# Filtrare i risultati con houghlines
-def locate_seed_line(img):
+# FIXME: Migliorare detection della linea. Da problemi con img 88R, 89R e simili. 
+# Provare a filtrare con houghlines mettendo come parametro di threshold un numero abbastanza alto
+# Oppure impostare una ROI rettangolare in corrispondenza, a grosso modo, della posizione della seed line
+def locate_seed_line(img, seed_line_offset_px=-10):
     """
     Returns the straighten up image and the extreme points of the seed line
 
@@ -105,18 +107,12 @@ def locate_seed_line(img):
     left_pt: a tuple containing the left point of the seed line in (x, y) format
     right_pt: a tuple containing the right point of the seed line in (x, y) format
     """
-    #img = cv.bitwise_not(img)##.astype(np.uint32)
-    """
-    img = img.astype(np.uint32) + 120
-    img = np.clip(img, 0, 255).astype(np.uint8)
-    """
+    #SEED_LINE_OFFSET_PX = -10
 
-    SEED_LINE_OFFSET_PX = -10
-
-    #show_image(img[..., ::-1])
     orig_img = img.copy()
     
     img = ~cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+    show_image(img)
     img = cv.GaussianBlur(img, (3, 3), 0)
     thresholded_img = cv.adaptiveThreshold(img, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 5, -2)
     # Find horizontal lines with width >= 10px and height = 1px
@@ -151,8 +147,9 @@ def locate_seed_line(img):
 
     labels[labels > 0] = 255
     labels = labels.astype(np.uint8)
-
     show_image(labels)
+
+    show_image(cv.bitwise_and(orig_img, orig_img, mask=labels))
 
     horizontal_lines = labels
 
@@ -192,7 +189,7 @@ def locate_seed_line(img):
     right_pt = np.int16(M@right_pt.T)
 
     left_pt_x, new_y = left_pt[:2]
-    new_y = new_y + SEED_LINE_OFFSET_PX
+    new_y = new_y + seed_line_offset_px
 
     left_pt = (left_pt[0], new_y)
     right_pt = (right_pt[0], new_y)
