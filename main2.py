@@ -19,7 +19,8 @@ mask_extension = 'bmp'
 image_extension = 'jpg'
 
 # 88R, 89R SUS
-image_name = '109'
+# Fare test su 498
+image_name = '109R'
 
 mask_path = find_file(mask_path, f'{image_name}.{mask_extension}')
 img_path = find_file(image_path, f'{image_name}.{image_extension}')
@@ -31,14 +32,15 @@ print(f'Mask path: {mask_path}')
 
 img = cv.imread(img_path)
 
-# FIXME: In locate seed line aggiungere inRange per individuare solo le righe nere
-img, left_pt, right_pt = locate_seed_line(img)
+img, left_pt, right_pt = locate_seed_line(img, 5)
+
+orig_img = img.copy()
 
 h, w = img.shape[:2]
 seed_line = np.zeros((h, w), dtype=np.uint8)
 cv.line(seed_line, left_pt, right_pt, 255, 1)
+show_image(seed_line)
 show_image(img)
-
 
 mask = cv.imread(mask_path, cv.COLOR_BGR2GRAY)
 show_image(mask)
@@ -47,34 +49,37 @@ show_image(mask)
 ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (7, 7))
 mask = cv.morphologyEx(mask, cv.MORPH_CLOSE, ker)
 
+# Dilation from the seed line and below in order to account for segmentation errors
+ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
+mask[left_pt[1]:, :] = cv.morphologyEx(mask[left_pt[1]:, :], cv.MORPH_DILATE, ker)
+show_image(mask)
+
 segmented = cv.bitwise_and(img, img, mask=mask)
 
-f_img, alpha, beta = automatic_brightness_and_contrast(segmented, 50) # TODO: Sperimentare sul clip limit
-
+f_img, alpha, beta = automatic_brightness_and_contrast(segmented, 10) # TODO: Sperimentare sul clip limit
+show_image(f_img)
 clahe_img = clahe_bgr(f_img, 1, (30, 30)) 
+
+show_image([f_img, clahe_img])
 
 # Gamma adjustment
 l  = adjust_gamma(clahe_img, 1.5)
+l1 = cv.equalizeHist(l)
+show_image([l, l1])
 
 # Removing noise due to gamma adjustment
 _, l = cv.threshold(l, 25, 255, cv.THRESH_TOZERO)
-
-show_image(l)
 
 #show_image([clahe_img, l])
 
 thr = cv.adaptiveThreshold(l, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 15, 0)
 cc_rem = remove_cc(thr, 50)
 
-show_image(cc_rem)
-
 ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (20, 20))
 cc_rem[:left_pt[1], :] = cv.morphologyEx(cc_rem[:left_pt[1], :], cv.MORPH_CLOSE, ker)
 
 # Blurring for smoothing the thresholded image
 blurred = cv.GaussianBlur(cc_rem, (3,3), 5) # TODO: Sostituibile con box filter?
-
-show_image(blurred)
 
 # Thresholding the blurred image in order to obtain a smoother segmentation
 cc_rem = cv.adaptiveThreshold(blurred, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 11, 0)
@@ -89,22 +94,52 @@ ker2 = np.array([[1, 1, 1],
                  [1, -1, 1],
                  [1, 1, 1]])
 
+
 one_px_diag = cv.morphologyEx(cc_rem, cv.MORPH_HITMISS, ker)
 one_px_gap = cv.morphologyEx(cc_rem, cv.MORPH_HITMISS, ker2)
 
 cc_rem = (cc_rem + one_px_gap) - one_px_diag
-show_image(cc_rem)
+show_image((cc_rem, "cc"))
 
 # ------------------ Finding seeds
-# TODO: Gestire il caso in cui le radici intersecano la seed line
-candidate_seeds = cv.bitwise_and(cc_rem, cc_rem, mask=seed_line)
-_, _, stats, centroids = cv.connectedComponentsWithStats(candidate_seeds)
-tmp = img.copy()
-seeds = []
-for centroid in np.uint16(centroids)[1:]:
-    tmp[centroid[1], centroid[0]] = (255, 0, 0)
-    seeds.append((centroid[1], centroid[0]))
-show_image((tmp, 'Seeds location'))
+
+lx, ly = left_pt
+rx, ry = right_pt
+
+lx = 0 if lx < 0 else lx
+rx = w if rx > w else rx
+
+seed_roi = orig_img[:ly, lx:rx, ...]
+hsv = cv.cvtColor(seed_roi, cv.COLOR_BGR2HSV)
+res = cv.inRange(hsv, (15, 80, 100), (35, 255, 255))
+show_image([res, seed_roi[..., ::-1]])
+
+ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
+ker2 = cv.getStructuringElement(cv.MORPH_ELLIPSE, (10, 10))
+morphed = cv.morphologyEx(res, cv.MORPH_OPEN, ker)
+morphed = cv.morphologyEx(morphed, cv.MORPH_CLOSE, ker2)
+
+_, labels, stats, _ = cv.connectedComponentsWithStats(morphed)
+
+candidate_seeds_box = []
+
+for i, stat in enumerate(stats[1:]):
+    if stat[cv.CC_STAT_AREA] < 200:
+        labels[i] = 0
+    else:
+        x, y = stat[cv.CC_STAT_LEFT], stat[cv.CC_STAT_TOP]
+        width, height = stat[cv.CC_STAT_WIDTH], stat[cv.CC_STAT_HEIGHT]
+        candidate_seeds_box.append((x, y, width, height))
+        print(f'Seed {i} BB: ')
+        print(f'\t x: {x}')
+        print(f'\t y: {y}')
+        print(f'\t w: {width}')
+        print(f'\t h: {height}')
+
+        cv.rectangle(img, (x, y), (x+width, y+height), (0, 255, 0), 1)
+
+show_image(labels, cmap='magma')
+show_image(img)
 #-------------------
 
 cv.imwrite('res.png', cc_rem)
@@ -114,17 +149,63 @@ cv.imwrite('skel.png', cc_rem)
 cc_rem[cc_rem == 255] = 1
 
 skeleton = skeletonize(cc_rem)
+#from path_extraction.prune import prune_skeleton_branches
+#_, pruned = prune_skeleton_branches(seeds, skel)
 
-graph, nodes = pixel_graph(skeleton, connectivity=8)
-print(graph.shape)
+show_image([skeleton, medial_axis(cc_rem)])
 
-for node in nodes[:10]:
-    print(np.unravel_index(node, (500, 500)))
+skeleton = medial_axis(cc_rem).astype(np.uint8)
+skeleton[skeleton == 1] = 255
+skeleton_color = cv.cvtColor(skeleton, cv.COLOR_GRAY2BGR)
 
-print(graph)
-show_image(skeleton)
+seeds_pos = []
+
+for seed_bb in candidate_seeds_box:
+    x,y,w,h = seed_bb
+
+    """
+    TODO: Migliorare il controllo. 
+          Attualmente non tiene in conto in caso in cui il seme (scheletonizzato) intersechi solo la 
+    """
+    ok = False
+    while not ok:
+        # Pixel intersection with each side of the rectangle bounding box
+        top = skeleton[y, x:x+w]
+        left = skeleton[y:y+h, x]
+        right = skeleton[y:y+h, x+w]
+        bottom = skeleton[y+h, x:x+w]
+
+        n_top = cv.countNonZero(top)
+        n_left = cv.countNonZero(left)
+        n_right = cv.countNonZero(right)
+        n_bottom = cv.countNonZero(bottom)
+
+        # Decrease the size of the bounding box if any of the side of the rectangle intersect more than one point
+        ok = True
+        if n_bottom > 1:
+            h = h-1
+            ok = False
+        if n_top > 1:
+            y = y+1
+            ok = False
+        if n_left > 1:
+            x = x+1
+            ok = False
+        if n_right > 1:
+            w = w-1
+            ok = False
+
+    cv.rectangle(skeleton_color, (x, y), (x+w, y+h), (0, 255, 0), 1)
+    bottom = cv.findNonZero(bottom)
+    if bottom is not None:
+        _, idx = bottom.flatten()
+        seeds_pos.append((y+h, x+idx))
+        skeleton_color[y+h, x+idx] = (0, 0, 255)
+
+print(seeds_pos)
 
 
+show_image(skeleton_color)
 """
 res = cv.bitwise_and(img, img, mask=cc_rem)
 
