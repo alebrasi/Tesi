@@ -4,6 +4,7 @@ from path_extraction.prune import valid_neighbors, seed_neighbors, root_neighbor
 import numpy as np
 import math
 from path_extraction.path import Path
+from collections import namedtuple
 
 class RootsExtraction:
 
@@ -13,9 +14,10 @@ class RootsExtraction:
         INTERNAL = 2
 
     def __init__(self, skeleton, distances):
-        self.skel = skeleton
-        self.dist = skeleton * distances
-        self.visited = set()
+        self._skel = skeleton
+        self._dist = skeleton * distances
+        self._visited = set()
+        self._WalkedPath = namedtuple('WalkedPath', ['point_type', 'path'])
 
     def __walk_to_node(self, sender_p, start_p):
         # TODO: Cambiare il nome alla funzione
@@ -36,7 +38,7 @@ class RootsExtraction:
         res = self.PointType.NODE
 
         while True:
-            n = valid_neighbors(cur_point, root_neighbors, self.skel)
+            n = valid_neighbors(cur_point, root_neighbors, self._skel)
             n.remove(prev_point)
 
             path.append(cur_point)
@@ -45,15 +47,14 @@ class RootsExtraction:
             if len(n) > 1:
                 break
 
-            if is_tip(cur_point, self.skel):
+            if is_tip(cur_point, self._skel):
                 res = self.PointType.TIP
                 break
 
             prev_point = cur_point
             cur_point = n[0]
 
-        return res, Path(path)
-
+        return self._WalkedPath(res, Path(path))
 
     def extract_roots(self, s, max_residual_err=1.0, min_points_lstsq=4):
         """
@@ -62,12 +63,12 @@ class RootsExtraction:
         Parameters
         """
 
-        neighbors = valid_neighbors(s, root_neighbors, self.skel)
+        neighbors = valid_neighbors(s, root_neighbors, self._skel)
         res = [ self.__walk_to_node(s, n) for n in neighbors ]
 
         # Retrieving the stem and forking node paths
-        stem_paths = list(filter(lambda t: t[0] == self.PointType.TIP, res))
-        forking_node_paths = list(filter(lambda t: t[0] == self.PointType.NODE, res))
+        stem_paths = list(filter(lambda t: t.point_type == self.PointType.TIP, res))
+        forking_node_paths = list(filter(lambda t: t.point_type == self.PointType.NODE, res))
         print(forking_node_paths)
 
         # Checks
@@ -84,7 +85,7 @@ class RootsExtraction:
         _, path = forking_node_paths[0]
         forking_node = path.points[-1]
         
-        neighbors = valid_neighbors(forking_node, root_neighbors, self.skel)
+        neighbors = valid_neighbors(forking_node, root_neighbors, self._skel)
         # Removes the father node
         print(neighbors)
         print(path.points)
