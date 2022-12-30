@@ -20,7 +20,8 @@ image_extension = 'jpg'
 
 # 88R, 89R SUS
 # Fare test su 498
-image_name = '109R'
+#105
+image_name = '109'
 
 mask_path = find_file(mask_path, f'{image_name}.{mask_extension}')
 img_path = find_file(image_path, f'{image_name}.{image_extension}')
@@ -115,8 +116,9 @@ res = cv.inRange(hsv, (15, 80, 100), (35, 255, 255))
 show_image([res, seed_roi[..., ::-1]])
 
 ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
-ker2 = cv.getStructuringElement(cv.MORPH_ELLIPSE, (10, 10))
+ker2 = cv.getStructuringElement(cv.MORPH_ELLIPSE, (25, 25))
 morphed = cv.morphologyEx(res, cv.MORPH_OPEN, ker)
+# TODO: Dilate o close?
 morphed = cv.morphologyEx(morphed, cv.MORPH_CLOSE, ker2)
 
 _, labels, stats, _ = cv.connectedComponentsWithStats(morphed)
@@ -124,7 +126,7 @@ _, labels, stats, _ = cv.connectedComponentsWithStats(morphed)
 candidate_seeds_box = []
 
 for i, stat in enumerate(stats[1:]):
-    if stat[cv.CC_STAT_AREA] < 200:
+    if stat[cv.CC_STAT_AREA] < 100:
         labels[i] = 0
     else:
         x, y = stat[cv.CC_STAT_LEFT], stat[cv.CC_STAT_TOP]
@@ -164,8 +166,9 @@ for seed_bb in candidate_seeds_box:
     x,y,w,h = seed_bb
 
     """
-    TODO: Migliorare il controllo. 
-          Attualmente non tiene in conto in caso in cui il seme (scheletonizzato) intersechi solo la 
+    TODO: Migliorare il controllo. Con l'immagine 105 ci sono 3 intersezioni (bottom)
+          Attualmente non tiene in conto in caso in cui il seme (scheletonizzato) intersechi solo il lato
+          destro o sinistro della bb
     """
     ok = False
     while not ok:
@@ -196,6 +199,8 @@ for seed_bb in candidate_seeds_box:
             ok = False
 
     cv.rectangle(skeleton_color, (x, y), (x+w, y+h), (0, 255, 0), 1)
+    # Centroid
+    skeleton_color[y+h//2, x+w//2] = (0,0,255)
     bottom = cv.findNonZero(bottom)
     if bottom is not None:
         _, idx = bottom.flatten()
