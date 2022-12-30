@@ -20,7 +20,7 @@ image_extension = 'jpg'
 
 # 88R, 89R SUS
 # Fare test su 498
-#105
+# 105
 image_name = '109'
 
 mask_path = find_file(mask_path, f'{image_name}.{mask_extension}')
@@ -46,25 +46,29 @@ show_image(img)
 mask = cv.imread(mask_path, cv.COLOR_BGR2GRAY)
 show_image(mask)
 
+# ------------------- Mask refinement
+
 # Morphological closing for filling small gaps in the mask
 ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (7, 7))
 mask = cv.morphologyEx(mask, cv.MORPH_CLOSE, ker)
 
 # Dilation from the seed line and below in order to account for segmentation errors
 ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
-mask[left_pt[1]:, :] = cv.morphologyEx(mask[left_pt[1]:, :], cv.MORPH_DILATE, ker)
+mask[left_pt[1]:, :] = cv.morphologyEx(
+    mask[left_pt[1]:, :], cv.MORPH_DILATE, ker)
 show_image(mask)
 
 segmented = cv.bitwise_and(img, img, mask=mask)
 
-f_img, alpha, beta = automatic_brightness_and_contrast(segmented, 10) # TODO: Sperimentare sul clip limit
+f_img, alpha, beta = automatic_brightness_and_contrast(
+    segmented, 10)  # TODO: Sperimentare sul clip limit
 show_image(f_img)
-clahe_img = clahe_bgr(f_img, 1, (30, 30)) 
+clahe_img = clahe_bgr(f_img, 1, (30, 30))
 
 show_image([f_img, clahe_img])
 
 # Gamma adjustment
-l  = adjust_gamma(clahe_img, 1.5)
+l = adjust_gamma(clahe_img, 1.5)
 l1 = cv.equalizeHist(l)
 show_image([l, l1])
 
@@ -73,34 +77,82 @@ _, l = cv.threshold(l, 25, 255, cv.THRESH_TOZERO)
 
 #show_image([clahe_img, l])
 
-thr = cv.adaptiveThreshold(l, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 15, 0)
+thr = cv.adaptiveThreshold(
+    l, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 15, 0)
 cc_rem = remove_cc(thr, 50)
 
 ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (20, 20))
-cc_rem[:left_pt[1], :] = cv.morphologyEx(cc_rem[:left_pt[1], :], cv.MORPH_CLOSE, ker)
+cc_rem[:left_pt[1], :] = cv.morphologyEx(
+    cc_rem[:left_pt[1], :], cv.MORPH_CLOSE, ker)
 
 # Blurring for smoothing the thresholded image
-blurred = cv.GaussianBlur(cc_rem, (3,3), 5) # TODO: Sostituibile con box filter?
+# TODO: Sostituibile con box filter?
+blurred = cv.GaussianBlur(cc_rem, (3, 3), 5)
 
 # Thresholding the blurred image in order to obtain a smoother segmentation
-cc_rem = cv.adaptiveThreshold(blurred, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 11, 0)
+cc_rem = cv.adaptiveThreshold(
+    blurred, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 11, 0)
 
-# Removing diagonal pixels and one background px surrounded by foreground
-# TODO: Aggiungere altri filtri
-ker = np.array([[0, -1, 1],
-                [1, 1, -1],
-                [1, 1, 0]])
+cc_rem = remove_cc(cc_rem, 50)
 
-ker2 = np.array([[1, 1, 1],
-                 [1, -1, 1],
-                 [1, 1, 1]])
+# ------------------- Refined mask postprocess
 
+one_px_ker = np.array([[1,  1, 1],
+                       [1, -1, 1],
+                       [1,  1, 1]])
+diag_ker = []
 
-one_px_diag = cv.morphologyEx(cc_rem, cv.MORPH_HITMISS, ker)
-one_px_gap = cv.morphologyEx(cc_rem, cv.MORPH_HITMISS, ker2)
+diag_ker.append([[0, 1,  -1],
+                 [0,  -1, 1],
+                 [0,  0,  0]])
 
-cc_rem = (cc_rem + one_px_gap) - one_px_diag
-show_image((cc_rem, "cc"))
+diag_ker.append([[-1, 1, 0],
+                 [1,  -1, 0],
+                 [0,  0, 0]])
+
+diag_ker.append([[0,  0, 0],
+                 [1,  -1, 0],
+                 [-1, 1, 0]])
+
+diag_ker.append([[0,  0,  0],
+                 [0, -1,  1],
+                 [0,  1, -1]])
+
+rect_ker = []
+
+rect_ker.append([[1,  1,  0],
+                 [0, -1, -1],
+                 [1,  1,  0]])
+
+rect_ker.append([[0,   1, 1],
+                 [-1, -1, 0],
+                 [0,   1, 1]])
+
+rect_ker.append([[0, -1,  0],
+                 [1, -1,  1],
+                 [1,  0,  1]])
+
+rect_ker.append([[1, 0,  1],
+                 [1, -1,  1],
+                 [0,  -1,  0]])
+
+bak = cc_rem.copy()
+
+# Remove background pixel in a 1xn or nx1 shape surrounded by foreground pixel
+for _ in range(4):
+    for ker1 in rect_ker:
+        xd = cv.morphologyEx(cc_rem, cv.MORPH_HITMISS, np.array(ker1))
+        cc_rem = cc_rem + xd
+
+# Remove baqckground pixel that has a neighbouring background pixel only diagonally
+for ker in diag_ker:
+    diag_px = cv.morphologyEx(cc_rem, cv.MORPH_HITMISS, np.array(ker))
+    cc_rem = cc_rem + diag_px
+
+# Remove background pixel surrounded by foreground pixel
+one_px_gap = cv.morphologyEx(cc_rem, cv.MORPH_HITMISS, one_px_ker)
+cc_rem = cc_rem + one_px_gap
+show_image([bak, (cc_rem, "cc")])
 
 # ------------------ Finding seeds
 
@@ -142,7 +194,7 @@ for i, stat in enumerate(stats[1:]):
 
 show_image(labels, cmap='magma')
 show_image(img)
-#-------------------
+# -------------------
 
 cv.imwrite('res.png', cc_rem)
 show_image([blurred, cc_rem])
@@ -163,7 +215,7 @@ skeleton_color = cv.cvtColor(skeleton, cv.COLOR_GRAY2BGR)
 seeds_pos = []
 
 for seed_bb in candidate_seeds_box:
-    x,y,w,h = seed_bb
+    x, y, w, h = seed_bb
 
     """
     TODO: Migliorare il controllo. Con l'immagine 105 ci sono 3 intersezioni (bottom)
@@ -200,7 +252,7 @@ for seed_bb in candidate_seeds_box:
 
     cv.rectangle(skeleton_color, (x, y), (x+w, y+h), (0, 255, 0), 1)
     # Centroid
-    skeleton_color[y+h//2, x+w//2] = (0,0,255)
+    skeleton_color[y+h//2, x+w//2] = (0, 0, 255)
     bottom = cv.findNonZero(bottom)
     if bottom is not None:
         _, idx = bottom.flatten()
@@ -210,7 +262,7 @@ for seed_bb in candidate_seeds_box:
 print(seeds_pos)
 
 
-show_image(skeleton_color)
+show_image([skeleton_color, orig_img])
 """
 res = cv.bitwise_and(img, img, mask=cc_rem)
 
