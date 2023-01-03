@@ -13,7 +13,7 @@ class Vector:
         self._p1 = np.array(p1)
         self._p2 = np.array(p2)
 
-        v = self._p1 - self._p2
+        v = self._p2 - self._p1
         self._mag = np.linalg.norm(v)
         self._v = v / self._mag
 
@@ -28,6 +28,12 @@ class Vector:
     @property
     def magnitude(self):
         return self._mag
+
+    @property
+    def angle(self):
+        angle = math.atan2(self._v[1], self._v[0])
+        angle = math.degrees(angle)
+        return angle + 360 * (1 if angle < 0 else 0)
 
     @staticmethod
     def angle_between(v1, v2) -> float:
@@ -52,3 +58,11 @@ class Vector:
         angle = math.degrees(angle)
 
         return angle
+
+    @staticmethod
+    def invert(v):
+        """
+        Returns the input vector with inverted direction
+        """
+        return Vector(v._p2, v._p1)
+
