@@ -50,8 +50,20 @@ class Path:
         return self._res_err
 
     @property
+    def endpoint(self):
+        return self._points[-1]
+
+    @property
+    def penultimate_point(self):
+        return self._points[-2] if len(self._points) > 1 else self.endpoint
+
+    @property
     def lenght(self):
         return len(self._points)
+
+    @property
+    def vector(self):
+        return Vector(self._points[0][::-1], self._points[-1][::-1])
 
     def get_lstsq_paths(self, max_res_err, min_points, iterations=-1):
         """
