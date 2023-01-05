@@ -33,7 +33,7 @@ class Vector:
     def angle(self):
         angle = math.atan2(self._v[1], self._v[0])
         angle = math.degrees(angle)
-        return angle + 360 * (1 if angle < 0 else 0)
+        return int(angle + 360 * (1 if angle < 0 else 0))
 
     @staticmethod
     def angle_between(v1, v2) -> float:
