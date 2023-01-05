@@ -5,7 +5,7 @@ from path_extraction.vector_utils import Vector
 from collections import namedtuple
 from enum import Enum
 import numpy as np
-import queue
+from queue import Queue
 import math
 
 import networkx as nx
@@ -14,13 +14,14 @@ import matplotlib.pyplot as plt
 class PointType(Enum):
     TIP = 0,
     NODE = 1,
-    INTERNAL = 2
+    SOURCE = 2
 
 
 WalkedPath = namedtuple('WalkedPath', ['point_type', 'path'])
 
-visited = set()
+queue = Queue()
 skel = None
+G = nx.DiGraph()
 
 """
 def __init__(skeleton, distances):
@@ -75,13 +76,20 @@ def draw_graph(G, node_attribute='pos', edge_attribute='weight', with_labels=Tru
     # Reverses the coordinates of the point (x, y) -> (y, x)
     pos = dict(map(lambda n: (n[0], reverse_coords(n[1])), nx.get_node_attributes(G, node_attribute).items()))
 
+    plt.rc('font', size=8)          # controls default text sizes
     # Write text on top of the corresponding edge
     for edge in G.edges:
         x1, y1 = pos[edge[0]]
         x2, y2 = pos[edge[1]]
 
         # Angle between the two nodes
-        d = math.degrees(math.atan2(y2-y1, x2-x1)) - 90.0
+        d = math.degrees(math.atan2(y2-y1, x2-x1))
+        """
+        print(d)
+        tmp = (180+d)+180 if d < 0 else d
+        sign = -1 if tmp > 90 and tmp < 270 else 1
+        d = tmp + sign * 90
+        """
 
         edge_val = G.edges[edge][edge_attribute]
 
@@ -98,9 +106,13 @@ def draw_graph(G, node_attribute='pos', edge_attribute='weight', with_labels=Tru
 
         x, y = quadratic_bezier((x1,y1), (cx, cy), (x2,y2), t)
 
-        plt.text(x, y, edge_val, rotation=d, backgroundcolor='white')
+        t = plt.text(x, y, edge_val, rotation=d, backgroundcolor='white')
+        t.set_bbox(dict(facecolor='white', alpha=0.0))
 
-    nx.draw(G, pos, with_labels=with_labels, connectionstyle=f'arc3, rad = {rad}')
+    nx.draw(G, pos, with_labels=with_labels, connectionstyle=f'arc3, rad = {rad}', node_size=node_size)
+    # TODO: fare lim automaticamente
+    #plt.xlim([0, 500])
+    #plt.ylim([0, 500])
     plt.gca().invert_yaxis()
     plt.show()
 
@@ -122,16 +134,34 @@ def quadratic_bezier(p0, p1, p2, t):
     y = (1 - t)**2 * p0[1] + 2 * (1 - t) * t * p1[1] + t**2 * p2[1]
     return (x, y)
     
+def add_nodes_and_edges(G, source_node, walked_path, max_res_err, min_points):
+    if source_node not in G:
+        G.add_node(source_node)
+    
+    prev_path_endpoint = source_node
+
+    for path in walked_path.get_lstsq_paths(max_res_err, min_points):
+        G.add_node(path.endpoint)
+        G.add_edge(prev_path_endpoint, path.endpoint, weight=path.vector.angle)
+        inv_vector = Vector.invert(path.vector)
+        G.add_edge(path.endpoint, prev_path_endpoint, weight=inv_vector.angle)
+        #H = nx.convert_node_labels_to_integers(G, label_attribute='pos')
+        #draw_graph(H)
+        prev_path_endpoint = path.endpoint
+
 def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_lstsq=4):
     """
     Creates a networkx graph of the plant
     """
-    
-    global visited
+
     global skel
+    global queue
+    global G
 
-    G = nx.DiGraph()
+    skel = skeleton
+    visited_nodes_neighbours = set()
 
+    """
     G.add_node('Hamburg', pos=(300, 100), lol=True)
     G.add_node('Berlin', pos=(150, 200), lol=True)
     G.add_node('Stuttgart', pos=(0, 0), lol=True)
@@ -141,5 +171,45 @@ def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_ls
     G.add_edge('Berlin', 'Hamburg', weight=5.0)
     G.add_edge('Berlin', 'Munich', weight=5.0)
     G.add_edge('Munich', 'Berlin', weight=5.0)
+    """
 
-    draw_graph(G)
+
+    for seed in seeds:
+        # TODO: Riscriverla un po' meglio
+        n = valid_neighbors(seed, root_neighbors, skel, return_idx=True)
+        start_point = list(map(lambda n: n[1] if n[0] > 5 else None, n))[-1]
+
+        _, path = walk_to_node(seed, start_point)
+
+        cur_node = path.endpoint
+
+        # TODO: spiegare meglio
+        # If the node is already in the graph, it means that the previous seed
+        # exploration already visited all the current plant
+        if cur_node in G:
+            G.nodes[cur_node]['ntype'] = PointType.SOURCE
+            continue
+
+        ntype = PointType.SOURCE
+        G.add_node(cur_node, ntype=ntype)
+        queue.put((ntype, cur_node))
+
+        while not queue.empty():
+            ntype, cur_node = queue.get()
+
+            #G.add_node(cur_node, pos=cur_node_num, ntype=ntype)
+
+            neighbours = valid_neighbors(cur_node, root_neighbors, skel)
+            neighbours = [ n for n in neighbours if n not in visited_nodes_neighbours ]
+
+            for n in neighbours:
+                visited_nodes_neighbours.add(n)
+                endpoint_type, walked_path = walk_to_node(cur_node, n)
+                if walked_path.penultimate_point not in visited_nodes_neighbours:
+                    add_nodes_and_edges(G, cur_node, walked_path, max_residual_err, min_points_lstsq)
+                    if endpoint_type is not PointType.TIP:
+                        queue.put((endpoint_type, walked_path.endpoint))
+
+
+    H = nx.convert_node_labels_to_integers(G, label_attribute='pos')
+    draw_graph(H, with_labels=False, node_size=20)
