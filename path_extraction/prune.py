@@ -14,7 +14,8 @@ def seed_neighbors(p):
 def idx(y, x, s=3):
     return (y * s) + x
 
-def valid_neighbors(p, neighbor_func, skel):
+# TODO: Fare refactor
+def valid_neighbors(p, neighbor_func, skel, return_idx=False):
     """
     Returns the valid node neighbors
 
@@ -35,6 +36,9 @@ def valid_neighbors(p, neighbor_func, skel):
     if valid[idx(1, 2)]:
         valid[idx(0, 2)] = valid[idx(2, 2)] = False
     #return [ i for i in neighbor_func(p) if skel[i] ]
+    if return_idx:
+        return [ (i, n1) for i, n1 in enumerate(n) if valid[i] ]
+        
     return [ n1 for i, n1 in enumerate(n) if valid[i] ]
 
 def is_tip(n, skel):
