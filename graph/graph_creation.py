@@ -16,20 +16,8 @@ class PointType(Enum):
     NODE = 1,
     SOURCE = 2
 
-
-WalkedPath = namedtuple('WalkedPath', ['point_type', 'path'])
-
-queue = Queue()
 skel = None
-G = nx.DiGraph()
-
-"""
-def __init__(skeleton, distances):
-    self._skel = skeleton
-    self._dist = skeleton * distances
-    self._visited = set()
-    self._WalkedPath = namedtuple('WalkedPath', ['point_type', 'path'])
-"""
+WalkedPath = namedtuple('WalkedPath', ['point_type', 'path'])
 
 def walk_to_node(sender_p, start_p):
     # TODO: Cambiare il nome alla funzione
@@ -70,11 +58,12 @@ def walk_to_node(sender_p, start_p):
 
     return WalkedPath(res, Path(path))
 
-def draw_graph(G, node_attribute='pos', edge_attribute='weight', with_labels=True, node_size=100, rad=0.1):
+def draw_graph(G, node_attribute='pos', edge_attribute='weight', node_color='blue', with_labels=True, node_size=100, rad=0.1):
     reverse_coords = lambda t: t[::-1]
 
     # Reverses the coordinates of the point (x, y) -> (y, x)
-    pos = dict(map(lambda n: (n[0], reverse_coords(n[1])), nx.get_node_attributes(G, node_attribute).items()))
+    pos = dict(map(lambda n: (n[0], reverse_coords(n[1])), 
+                    nx.get_node_attributes(G, node_attribute).items()))
 
     plt.rc('font', size=8)          # controls default text sizes
     # Write text on top of the corresponding edge
@@ -109,10 +98,8 @@ def draw_graph(G, node_attribute='pos', edge_attribute='weight', with_labels=Tru
         t = plt.text(x, y, edge_val, rotation=d, backgroundcolor='white')
         t.set_bbox(dict(facecolor='white', alpha=0.0))
 
-    nx.draw(G, pos, with_labels=with_labels, connectionstyle=f'arc3, rad = {rad}', node_size=node_size)
-    # TODO: fare lim automaticamente
-    #plt.xlim([0, 500])
-    #plt.ylim([0, 500])
+    nx.draw(G, pos, with_labels=with_labels, node_color=node_color, connectionstyle=f'arc3, rad = {rad}', node_size=node_size)
+
     plt.gca().invert_yaxis()
     plt.show()
 
@@ -136,17 +123,16 @@ def quadratic_bezier(p0, p1, p2, t):
     
 def add_nodes_and_edges(G, source_node, walked_path, max_res_err, min_points):
     if source_node not in G:
-        G.add_node(source_node)
+        G.add_node(source_node, ntype=PointType.NODE)
     
     prev_path_endpoint = source_node
 
     for path in walked_path.get_lstsq_paths(max_res_err, min_points):
-        G.add_node(path.endpoint)
-        G.add_edge(prev_path_endpoint, path.endpoint, weight=path.vector.angle)
+        G.add_node(path.endpoint, ntype=PointType.NODE)
+        G.add_edge(prev_path_endpoint, path.endpoint, weight=path.vector.angle, path=path.points)
         inv_vector = Vector.invert(path.vector)
-        G.add_edge(path.endpoint, prev_path_endpoint, weight=inv_vector.angle)
-        #H = nx.convert_node_labels_to_integers(G, label_attribute='pos')
-        #draw_graph(H)
+        G.add_edge(path.endpoint, prev_path_endpoint, weight=inv_vector.angle, path=path.points[::-1])
+
         prev_path_endpoint = path.endpoint
 
 def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_lstsq=4):
@@ -155,24 +141,11 @@ def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_ls
     """
 
     global skel
-    global queue
-    global G
+    queue = Queue()
+    G = nx.DiGraph()
 
     skel = skeleton
     visited_nodes_neighbours = set()
-
-    """
-    G.add_node('Hamburg', pos=(300, 100), lol=True)
-    G.add_node('Berlin', pos=(150, 200), lol=True)
-    G.add_node('Stuttgart', pos=(0, 0), lol=True)
-    G.add_node('Munich', pos=(500,500), lol=True)
-
-    G.add_edge('Hamburg', 'Berlin', weight=2.0)
-    G.add_edge('Berlin', 'Hamburg', weight=5.0)
-    G.add_edge('Berlin', 'Munich', weight=5.0)
-    G.add_edge('Munich', 'Berlin', weight=5.0)
-    """
-
 
     for seed in seeds:
         # TODO: Riscriverla un po' meglio
@@ -197,8 +170,6 @@ def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_ls
         while not queue.empty():
             ntype, cur_node = queue.get()
 
-            #G.add_node(cur_node, pos=cur_node_num, ntype=ntype)
-
             neighbours = valid_neighbors(cur_node, root_neighbors, skel)
             neighbours = [ n for n in neighbours if n not in visited_nodes_neighbours ]
 
@@ -209,7 +180,10 @@ def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_ls
                     add_nodes_and_edges(G, cur_node, walked_path, max_residual_err, min_points_lstsq)
                     if endpoint_type is not PointType.TIP:
                         queue.put((endpoint_type, walked_path.endpoint))
-
+                    else:
+                        G.nodes[walked_path.endpoint]['ntype'] = PointType.TIP
 
     H = nx.convert_node_labels_to_integers(G, label_attribute='pos')
-    draw_graph(H, with_labels=False, node_size=20)
+    color_map = { PointType.NODE:'blue', PointType.SOURCE:'red', PointType.TIP:'orange' }
+    node_color = [ color_map[G.nodes[node]['ntype']] for node in G ]
+    draw_graph(H, with_labels=False, node_color=node_color, node_size=20)
