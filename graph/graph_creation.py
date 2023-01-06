@@ -57,78 +57,15 @@ def walk_to_node(sender_p, start_p):
         cur_point = n[0]
 
     return WalkedPath(res, Path(path))
-
-def draw_graph(G, node_attribute='pos', edge_attribute='weight', node_color='blue', with_labels=True, node_size=100, rad=0.1):
-    reverse_coords = lambda t: t[::-1]
-
-    # Reverses the coordinates of the point (x, y) -> (y, x)
-    pos = dict(map(lambda n: (n[0], reverse_coords(n[1])), 
-                    nx.get_node_attributes(G, node_attribute).items()))
-
-    plt.rc('font', size=8)          # controls default text sizes
-    # Write text on top of the corresponding edge
-    for edge in G.edges:
-        x1, y1 = pos[edge[0]]
-        x2, y2 = pos[edge[1]]
-
-        # Angle between the two nodes
-        d = math.degrees(math.atan2(y2-y1, x2-x1))
-        """
-        print(d)
-        tmp = (180+d)+180 if d < 0 else d
-        sign = -1 if tmp > 90 and tmp < 270 else 1
-        d = tmp + sign * 90
-        """
-
-        edge_val = G.edges[edge][edge_attribute]
-
-        x12, y12 = (x1 + x2) / 2., (y1 + y2) / 2.
-        dx, dy = x2 - x1, y2 - y1
-
-        f = rad
-
-        # Corresponds to the center between edge 1 and edge 2
-        t = 0.5
-
-        # Control point of the bezier curve
-        cx, cy = x12 + f * dy, y12 - f * dx
-
-        x, y = quadratic_bezier((x1,y1), (cx, cy), (x2,y2), t)
-
-        t = plt.text(x, y, edge_val, rotation=d, backgroundcolor='white')
-        t.set_bbox(dict(facecolor='white', alpha=0.0))
-
-    nx.draw(G, pos, with_labels=with_labels, node_color=node_color, connectionstyle=f'arc3, rad = {rad}', node_size=node_size)
-
-    plt.gca().invert_yaxis()
-    plt.show()
-
-def quadratic_bezier(p0, p1, p2, t):
-    """
-    Computes a point on a quadratic Bezier curve.
-    https://it.wikipedia.org/wiki/Curva_di_B%C3%A9zier
-
-    Parameters:
-    p0 (tuple): Starting point.
-    p1 (tuple): Control point.
-    p2 (tuple): End point.
-    t (float): Parameter value in the range [0, 1].
-    
-    Returns:
-    tuple: Coordinates of the point on the curve.
-    """
-    x = (1 - t)**2 * p0[0] + 2 * (1 - t) * t * p1[0] + t**2 * p2[0]
-    y = (1 - t)**2 * p0[1] + 2 * (1 - t) * t * p1[1] + t**2 * p2[1]
-    return (x, y)
     
 def add_nodes_and_edges(G, source_node, walked_path, max_res_err, min_points):
     if source_node not in G:
-        G.add_node(source_node, ntype=PointType.NODE)
+        G.add_node(source_node, node_type=PointType.NODE)
     
     prev_path_endpoint = source_node
 
     for path in walked_path.get_lstsq_paths(max_res_err, min_points):
-        G.add_node(path.endpoint, ntype=PointType.NODE)
+        G.add_node(path.endpoint, node_type=PointType.NODE)
         G.add_edge(prev_path_endpoint, path.endpoint, weight=path.vector.angle, path=path.points)
         inv_vector = Vector.invert(path.vector)
         G.add_edge(path.endpoint, prev_path_endpoint, weight=inv_vector.angle, path=path.points[::-1])
@@ -148,42 +85,41 @@ def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_ls
     visited_nodes_neighbours = set()
 
     for seed in seeds:
-        # TODO: Riscriverla un po' meglio
+
+        # Walks to the first node that is below the given seed point 
+        # (we don't know if the point is actually the seed node)
+        # which will be the seed node
         n = valid_neighbors(seed, root_neighbors, skel, return_idx=True)
         start_point = list(map(lambda n: n[1] if n[0] > 5 else None, n))[-1]
-
         _, path = walk_to_node(seed, start_point)
-
         cur_node = path.endpoint
 
-        # TODO: spiegare meglio
-        # If the node is already in the graph, it means that the previous seed
-        # exploration already visited all the current plant
+        # If the seed node is already in the graph, it means that the previous
+        # exploration (started from the previous seed) already visited all the plant
+        # that grown up from the current seed
         if cur_node in G:
-            G.nodes[cur_node]['ntype'] = PointType.SOURCE
+            G.nodes[cur_node]['node_type'] = PointType.SOURCE
             continue
 
-        ntype = PointType.SOURCE
-        G.add_node(cur_node, ntype=ntype)
-        queue.put((ntype, cur_node))
+        G.add_node(cur_node, node_type=PointType.SOURCE)
+        queue.put(cur_node)
 
         while not queue.empty():
-            ntype, cur_node = queue.get()
+            cur_node = queue.get()
 
-            neighbours = valid_neighbors(cur_node, root_neighbors, skel)
-            neighbours = [ n for n in neighbours if n not in visited_nodes_neighbours ]
+            node_neighbours = valid_neighbors(cur_node, root_neighbors, skel)
+            node_neighbours = [ n for n in node_neighbours if n not in visited_nodes_neighbours ]
 
-            for n in neighbours:
+            for n in node_neighbours:
                 visited_nodes_neighbours.add(n)
                 endpoint_type, walked_path = walk_to_node(cur_node, n)
                 if walked_path.penultimate_point not in visited_nodes_neighbours:
                     add_nodes_and_edges(G, cur_node, walked_path, max_residual_err, min_points_lstsq)
                     if endpoint_type is not PointType.TIP:
-                        queue.put((endpoint_type, walked_path.endpoint))
+                        queue.put(walked_path.endpoint)
                     else:
-                        G.nodes[walked_path.endpoint]['ntype'] = PointType.TIP
+                        G.nodes[walked_path.endpoint]['node_type'] = PointType.TIP
 
     H = nx.convert_node_labels_to_integers(G, label_attribute='pos')
-    color_map = { PointType.NODE:'blue', PointType.SOURCE:'red', PointType.TIP:'orange' }
-    node_color = [ color_map[G.nodes[node]['ntype']] for node in G ]
-    draw_graph(H, with_labels=False, node_color=node_color, node_size=20)
+    
+    return H
