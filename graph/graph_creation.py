@@ -22,9 +22,10 @@ WalkedPath = namedtuple('WalkedPath', ['point_type', 'path'])
 def walk_to_node(sender_p, start_p):
     # TODO: Cambiare il nome alla funzione
     """
-    Returns a list of points (path) that are between the point `p` and the first available node or tip
+    Returns a list of points (path) that are between the point `p` and the first 
+    available node or tip
 
-    Paramteres:
+    Parameteres:
         sender_p (tuple): The `father` of the starting point
         start_p (tuple): The starting point, which is the `son` (or neighbor) of `sender_p` 
 
@@ -59,6 +60,16 @@ def walk_to_node(sender_p, start_p):
     return WalkedPath(res, Path(path))
     
 def add_nodes_and_edges(G, source_node, walked_path, max_res_err, min_points):
+    """
+    Add nodes and edges given a path that has lstsq paths in it.
+
+    Parameters:
+        G (networkx.DiGraph) : the directed graph
+        source_node (tuple) : coordinates of the source node in (y, x) format
+        walked_path (Path) : the path
+        max_res_err (float) : maximum residual error for obtaining a least squared path
+        min_point (int) : minimum number that must contains a least squared path
+    """
     if source_node not in G:
         G.add_node(source_node, node_type=PointType.NODE)
     
@@ -66,15 +77,41 @@ def add_nodes_and_edges(G, source_node, walked_path, max_res_err, min_points):
 
     for path in walked_path.get_lstsq_paths(max_res_err, min_points):
         G.add_node(path.endpoint, node_type=PointType.NODE)
-        G.add_edge(prev_path_endpoint, path.endpoint, weight=path.vector.angle, path=path.points)
+        G.add_edge(prev_path_endpoint, 
+                    path.endpoint, 
+                    weight=path.vector.angle, 
+                    path_points=path.points, 
+                    length=len(path.points))
+
+        # Adds the opposite edge
         inv_vector = Vector.invert(path.vector)
-        G.add_edge(path.endpoint, prev_path_endpoint, weight=inv_vector.angle, path=path.points[::-1])
+        G.add_edge(path.endpoint, 
+                    prev_path_endpoint, 
+                    weight=inv_vector.angle, 
+                    path_points=path.points[::-1],     # Just reverse the order of the points
+                    lenght=len(path.points))
 
         prev_path_endpoint = path.endpoint
 
 def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_lstsq=4):
     """
-    Creates a networkx graph of the plant
+    Creates a networkx directed graph of the plant.
+    The plant is approximated with least squared lines.
+
+    Nodes attributes:
+        - pos (tuple) : coordinates of the node
+        - node_type (PointType) : type of the node
+    
+    Edges attributes:
+        - weight (int) : angle between the two connected nodes
+        - lenght (int) : number of points between the two nodes
+        - path_points (list) : points, in (y, x) format, between the two nodes
+
+    Parameters:
+        seeds (list) : positions of the seeds, in (y, x) format
+        skeleton (numpy.ndarray) : boolean matrix that is the skeletonization of the segmented image
+        max_residual_err (float) : maximum residual error for obtaining a least squared path
+        min_points_lstsq (int) : minimum number of points that must contains a least squared path
     """
 
     global skel
@@ -114,7 +151,12 @@ def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_ls
                 visited_nodes_neighbours.add(n)
                 endpoint_type, walked_path = walk_to_node(cur_node, n)
                 if walked_path.penultimate_point not in visited_nodes_neighbours:
-                    add_nodes_and_edges(G, cur_node, walked_path, max_residual_err, min_points_lstsq)
+                    add_nodes_and_edges(G, 
+                                        cur_node, 
+                                        walked_path, 
+                                        max_residual_err, 
+                                        min_points_lstsq)
+
                     if endpoint_type is not PointType.TIP:
                         queue.put(walked_path.endpoint)
                     else:
