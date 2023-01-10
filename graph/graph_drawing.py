@@ -42,7 +42,13 @@ def draw_graph(G, node_attribute='pos', edge_attribute='weight', node_color='blu
         t = plt.text(x, y, edge_val, rotation=d, backgroundcolor='white')
         t.set_bbox(dict(facecolor='white', alpha=0.0))
 
-    nx.draw(G, pos, with_labels=with_labels, node_color=node_color, connectionstyle=f'arc3, rad = {rad}', node_size=node_size)
+    nx.draw(G, 
+            pos, 
+            with_labels=with_labels, 
+            node_color=node_color, 
+            connectionstyle=f'arc3, rad = {rad}', 
+            node_size=node_size, 
+            font_size=6)
 
     plt.gca().invert_yaxis()
     plt.show()
