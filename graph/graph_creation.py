@@ -62,6 +62,8 @@ def walk_to_node(sender_p, start_p):
 def add_nodes_and_edges(G, source_node, walked_path, max_res_err, min_points):
     """
     Add nodes and edges given a path that has lstsq paths in it.
+    Note: the vector associated to the edge is flipped horizontally, 
+          so the calculated angle is not right if the graph is plotted
 
     Parameters:
         G (networkx.DiGraph) : the directed graph
@@ -76,18 +78,22 @@ def add_nodes_and_edges(G, source_node, walked_path, max_res_err, min_points):
     prev_path_endpoint = source_node
 
     for path in walked_path.get_lstsq_paths(max_res_err, min_points):
+        # TODO: the edge and its opposite have the vectors swapped in order to account 
+        # for the (y, x) coordinate system, where (0, 0) is located in the top-left corner.
+        # Modify this code or the vector class in order to account for it. Or leave as it is.
+
         G.add_node(path.endpoint, node_type=PointType.NODE)
+        inv_vector = Vector.invert(path.vector)
         G.add_edge(prev_path_endpoint, 
                     path.endpoint, 
-                    weight=path.vector.angle, 
+                    weight=inv_vector.angle, 
                     path_points=path.points, 
                     length=len(path.points))
 
         # Adds the opposite edge
-        inv_vector = Vector.invert(path.vector)
         G.add_edge(path.endpoint, 
                     prev_path_endpoint, 
-                    weight=inv_vector.angle, 
+                    weight=path.vector.angle, 
                     path_points=path.points[::-1],     # Just reverse the order of the points
                     lenght=len(path.points))
 
