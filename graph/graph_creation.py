@@ -88,14 +88,16 @@ def add_nodes_and_edges(G, source_node, walked_path, max_res_err, min_points):
                     path.endpoint, 
                     weight=inv_vector.angle, 
                     path_points=path.points, 
-                    length=len(path.points))
+                    length=len(path.points),
+                    vector=inv_vector)
 
         # Adds the opposite edge
         G.add_edge(path.endpoint, 
                     prev_path_endpoint, 
                     weight=path.vector.angle, 
                     path_points=path.points[::-1],     # Just reverse the order of the points
-                    lenght=len(path.points))
+                    lenght=len(path.points),
+                    vector=path.vector)
 
         prev_path_endpoint = path.endpoint
 
@@ -112,6 +114,7 @@ def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_ls
         - weight (int) : angle between the two connected nodes
         - lenght (int) : number of points between the two nodes
         - path_points (list) : points, in (y, x) format, between the two nodes
+        - vector (Vector) : vector describing the direction of the ege
 
     Parameters:
         seeds (list) : positions of the seeds, in (y, x) format
