@@ -13,6 +13,7 @@ from path_extraction.extract_roots import extract_plants_roots
 from path_extraction.algorithm import RootsExtraction
 from graph.graph_creation import create_graph, PointType
 from graph.graph_drawing import draw_graph
+from graph.algorithm import extract
 
 def ravel_idx(x, y, width):
     return (y * width) + x
@@ -36,7 +37,7 @@ seeds = [(164, 172), (166, 255), (166, 340)]
 # Skeleton branch prune
 _, pruned = prune_skeleton_branches(seeds, skel.copy())
 
-show_image(pruned * distance, cmap='magma')
+#show_image(pruned * distance, cmap='magma')
 # Done just for retrieving the valid root tips.
 # Can be swapped with a more efficient function
 tips, pruned = prune_skeleton_branches(seeds, pruned) 
@@ -47,15 +48,20 @@ skel2 = boolean_matrix_to_rgb(pruned)
 for tip in tips:
     skel2[tip] = (0, 255, 0)
 
-show_image([skel2, skel1])
+#show_image([skel2, skel1])
 
 G = create_graph(seeds, pruned, distance)
-color_map = { PointType.NODE:'blue', PointType.SOURCE:'red', PointType.TIP:'orange' }
+color_map = { 
+                PointType.NODE:'lightgreen', 
+                PointType.SOURCE:'red', 
+                PointType.TIP:'orange' 
+            }
+
 node_color = [ color_map[G.nodes[node]['node_type']] for node in G ]
-draw_graph(G, with_labels=False, node_color=node_color, node_size=20)
 
+extract(G)
 
-
+draw_graph(G, with_labels=True, node_color=node_color, node_size=20)
 
 
 """
