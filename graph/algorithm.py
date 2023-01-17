@@ -42,30 +42,8 @@ def extract(G, angle_par_name='weight'):
         """
         plants[:] = filterfalse(lambda p: not p.compute(), plants)
 
-    all_p = np.zeros((500, 500, 3))
+    return all_plants
 
-    for i, plant in enumerate(all_plants, 0):
-        print(f'Plant: {i}')
-        print(f'Num roots: {len(plant.roots)}')
-        mask = np.zeros((500, 500, 3))
-        for root in plant.roots:
-            print(root.edges)
-            print(root._edges)
-            print(root._split_node)
-            print('\n\n\n')
-            points = np.array(root.points)
-            for point in points:
-                #print(point)
-                y, x = point
-                
-                mask[y, x, i] = 255
-                all_p[y, x, i] = 255
-            plt.imshow(mask.astype(np.uint8))
-            plt.show()
-            #mask[points] = 255
-
-    plt.imshow(all_p)
-    plt.show()
 
     print("Ohhhhhhh my godddd")
 
@@ -73,19 +51,3 @@ def extract(G, angle_par_name='weight'):
 
 
     # funzioni utili: mapped queue (min heap) in networkx.utils
-
-    """
-    for p in plants:
-        n = list(nx.neighbors(G, p))
-        #print(nx.edges(G, p))
-        for n1 in n:
-            print(G.adj[n1][p]['weight'])
-        print('\n\n')
-    """
-
-    """
-    while len(seeds) > 0:
-        for seed in seeds:
-
-            pass
-    """
