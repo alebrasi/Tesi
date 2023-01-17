@@ -22,19 +22,32 @@ class Plant:
 
     def _init_new_root_starting_from_seed(self):
         n = self._seed_node_neighbors.pop()
-        return Root((self._seed, n))
+        return Root(self, (self._seed, n))
 
     def _init_new_root(self):
+        new_root = None
         if len(self._seed_node_neighbors) == 0:
+            """
             root = min(self._roots, 
-                        key=lambda r: r.highest_non_walked_node, 
+                        key=lambda r: r.highest_non_walked_node[2][0], 
                         default=None)
+            """
+
+            root = min(
+                        filter(lambda r: r[1] != None, 
+                            map(lambda r: (r, r.highest_non_walked_node), self._roots)), 
+                    key=lambda k: k[1][2][0],
+                    default=None)
 
             if root == None:
                 return False
 
-            node = root.highest_non_walked_node
-            new_root = copy.deepcopy(root)
+            node = root[0].highest_non_walked_node
+            print('plant: ', node)
+            # FIXME: Fare la deepcopy degli edge della  root fino a quel nodo
+            #new_root = copy.deepcopy(root)
+            new_root = root[0].copy_until_node(node[0])
+            new_root._add_edge((node[0], node[1]))
         else:
             new_root = self._init_new_root_starting_from_seed()
 
