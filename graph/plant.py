@@ -64,4 +64,8 @@ class Plant:
                 return False
 
         return True
+
+    @property
+    def roots(self):
+        return copy.deepcopy(self._roots)
         
