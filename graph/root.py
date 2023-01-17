@@ -23,6 +23,8 @@ class Root:
         self._plant = plant
         self._add_edge(start_edge)
 
+        self._split_node = None
+
     def __str__(self):
         return f'Start edge: {self._start_edge} \n \
                 Cur edge: {self._cur_edge} \n \
@@ -120,6 +122,7 @@ class Root:
             
             #print(node)
             #print(copied._ordered_edges)
+            copied._split_node = (node, node_neighbor)
 
             idx = tmp_edges.index(True)
             copied._cur_edge = copied._ordered_edges[idx]
