@@ -2,7 +2,14 @@ import math
 import networkx as nx
 import matplotlib.pyplot as plt
 
-def draw_graph(G, node_attribute='pos', edge_attribute='weight', node_color='blue', with_labels=True, node_size=100, rad=0.1):
+def draw_graph(G, 
+                node_attribute='pos', 
+                edge_attribute='weight', 
+                node_color='blue', 
+                with_labels=True,
+                invert_xaxis=True, 
+                node_size=100, rad=0.1):
+
     reverse_coords = lambda t: t[::-1]
 
     # Reverses the coordinates of the point (x, y) -> (y, x)
@@ -51,6 +58,8 @@ def draw_graph(G, node_attribute='pos', edge_attribute='weight', node_color='blu
             font_size=6)
 
     plt.gca().invert_yaxis()
+    if invert_xaxis:
+        plt.gca().invert_xaxis()
     plt.show()
 
 def quadratic_bezier(p0, p1, p2, t):
