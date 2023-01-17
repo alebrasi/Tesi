@@ -7,13 +7,16 @@ from utils import show_image
 from skimage.morphology import skeletonize, medial_axis
 import queue
 import math
+import time
 
 from path_extraction.prune import prune_skeleton_branches
 from path_extraction.extract_roots import extract_plants_roots
 from path_extraction.algorithm import RootsExtraction
+
 from graph.graph_creation import create_graph, PointType
 from graph.graph_drawing import draw_graph
 from graph.algorithm import extract
+from graph.plant import Plant
 
 def ravel_idx(x, y, width):
     return (y * width) + x
@@ -61,6 +64,40 @@ node_color = [ color_map[G.nodes[node]['node_type']] for node in G ]
 
 draw_graph(G, with_labels=True, node_color=node_color, node_size=20)
 
-extract(G)
+plants = extract(G)
+
+all_p = np.ones((500, 500, 3))
+cv.namedWindow('image', cv.WINDOW_FULLSCREEN)
+
+for i, plant in enumerate(plants, 0):
+    print(f'Plant: {i}')
+    print(f'Num roots: {len(plant.roots)}')
+    mask = np.zeros((500, 500, 3))
+    for root in plant.roots:
+        print(root.edges)
+        print(root._edges)
+        print(root._split_node)
+        print('\n\n\n')
+        color1 = (list(np.random.choice(range(256), size=3)))  
+        points = np.array(root.points)
+        for point in points:
+            #print(point)
+            y, x = point
+            
+            mask[y, x, i] = 255
+            all_p[y, x, :] = color1
+            cv.imshow('image', all_p.astype(np.uint8))
+            cv.waitKey(1)
+            time.sleep(0.01)
+        #plt.imshow(mask.astype(np.uint8))
+        #plt.show()
+print('Done!')
+while True:
+    if cv.waitKey(20) & 0xFF == 27:
+        break
+
+cv.destroyAllWindows()
+#plt.imshow(all_p)
+#plt.show()
 
 draw_graph(G, with_labels=True, node_color=node_color, node_size=20, invert_xaxis=False)
