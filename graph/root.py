@@ -151,9 +151,10 @@ class Root:
         """
         return self._edges.copy()
 
+    @property
     def points(self):
-        # TODO
-        pass
+        G = type(self).G
+        return list(flat_map(lambda p: p, (G.edges[e]['path_points'] for e in self._edges)))
 
     @property
     def cur_edge(self):
