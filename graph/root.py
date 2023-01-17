@@ -13,7 +13,7 @@ class Root:
     def attach_graph(G):
         Root.G = G
 
-    def __init__(self, plant, start_edge, ema_alpha=0.8):
+    def __init__(self, plant, start_edge, ema_alpha=0.5):
         self._edges = set()
         self._cur_edge = None
         self._prev_angle_ema = None
@@ -110,15 +110,16 @@ class Root:
 
         return min(non_walked_nodes,
                     key=lambda n: n[2][0],  # key = y coordinate of 'pos'
-                   default=None) #[0]                   # TODO: Sistemare.  Grabs only the node
+                    default=None) #[0]                   # TODO: Sistemare.  Grabs only the node
 
 
-    def copy_until_node(self, node):
+    def copy_until_node(self, node, node_neighbor):
             copied = copy.deepcopy(self)
             tmp_edges = [ True if edge[1] == node else False for edge in copied._ordered_edges ]
             #print(id(self))
-            print(node)
-            print(copied._ordered_edges)
+            
+            #print(node)
+            #print(copied._ordered_edges)
 
             idx = tmp_edges.index(True)
             copied._cur_edge = copied._ordered_edges[idx]
@@ -130,9 +131,10 @@ class Root:
             ema = type(self).G.edges[copied._ordered_edges[0]]['weight']
             for edge in copied._ordered_edges:
                 angle = type(self).G.edges[edge]['weight']
-                ema = self._calc_ema(ema, angle, 0.8)
+                ema = self._calc_ema(ema, angle, self._ema_alpha)
 
             copied._prev_angle_ema = ema
+            copied._add_edge((node, node_neighbor))
 
             return copied
 
@@ -149,7 +151,7 @@ class Root:
         """
         Returns all the edges in the root
         """
-        return self._edges.copy()
+        return self._ordered_edges.copy()
 
     @property
     def points(self):
@@ -161,7 +163,7 @@ class Root:
         return self._cur_edge
 
     def _calc_ema(self, ema, angle, alpha):
-        return (alpha * angle) + ((1 - ema) * angle)
+        return (alpha * angle) + ((1 - alpha) * angle)
 
     def _update_angle_EMA(self, edge):
         """
@@ -194,6 +196,8 @@ class Root:
 
     def _compare_neighbor(self, node, neighbor):
         G = type(self).G
+        if neighbor == self._plant._tip_start_node:
+            return float('inf')
 
         edge = (node, neighbor)
         return abs(self._prev_angle_ema - G.edges[edge]['weight'])
@@ -237,7 +241,7 @@ class Root:
 
         # There's only one neighbor node: it can only go to that
         if len(neighbors) == 1:
-            node, _ = res[-1]
+            node, _ = res[0]
             self._add_edge((cur_node, node))
 
             return True
