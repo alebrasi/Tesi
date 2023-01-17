@@ -1,6 +1,8 @@
 import networkx as nx
+from itertools import filterfalse
 from graph.graph_creation import PointType
 from graph.plant import Plant
+from graph.root import Root
 
 def extract(G, angle_par_name='weight'):
     ANGLE = angle_par_name
@@ -11,6 +13,7 @@ def extract(G, angle_par_name='weight'):
     plants = []
 
     Plant.attach_graph(G)
+    Root.attach_graph(G)
 
     for seed in seeds:
         tip_start_node = min(G.neighbors(seed), 
@@ -22,10 +25,14 @@ def extract(G, angle_par_name='weight'):
     print("Dita incrociate")
 
     while len(plants) > 0:
-        for plant in plants:
-            if not plant.compute():
+        """
+        for i in range(len(plants)):
+            if not (plants[i]).compute():
+                plant = plants[i]
                 plants.remove(plant)
-                continue
+                #continue
+        """
+        plants[:] = filterfalse(lambda p: not p.compute(), plants)
 
     print("Ohhhhhhh my godddd")
 
