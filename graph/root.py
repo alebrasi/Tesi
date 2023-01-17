@@ -123,8 +123,9 @@ class Root:
 
             idx = tmp_edges.index(True)
             copied._cur_edge = copied._ordered_edges[idx]
+            copied._edges.difference_update(copied._ordered_edges[idx+1:])
             copied._ordered_edges = copied._ordered_edges[:idx+1]
-            copied._edges.difference_update(tmp_edges[:idx+1])
+            #copied._edges.difference_update(tmp_edges[:idx+1])
 
             # TODO: Scrivere MEGLIO
             # calculate EMA angle
@@ -156,7 +157,8 @@ class Root:
     @property
     def points(self):
         G = type(self).G
-        return list(flat_map(lambda p: p, (G.edges[e]['path_points'] for e in self._edges)))
+        return list(flat_map(lambda p: p, (G.edges[e]['path_points'] 
+                                                for e in self._ordered_edges)))
 
     @property
     def cur_edge(self):
