@@ -2,12 +2,12 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import cv2 as cv
 from skimage.graph import pixel_graph
-from scipy.sparse import coo_matrix
 import numpy as np
 from utils import show_image
 from skimage.morphology import skeletonize, medial_axis
 import queue
 import math
+
 from path_extraction.prune import prune_skeleton_branches
 from path_extraction.extract_roots import extract_plants_roots
 from path_extraction.algorithm import RootsExtraction
@@ -59,50 +59,8 @@ color_map = {
 
 node_color = [ color_map[G.nodes[node]['node_type']] for node in G ]
 
-extract(G)
-
 draw_graph(G, with_labels=True, node_color=node_color, node_size=20)
 
+extract(G)
 
-"""
-alg = RootsExtraction(pruned, distance)
-stem_path, paths = alg.extract_roots(s)
-colors = [(255, 0, 0), (0,255,0), (0, 0, 255)]
-skel1 = boolean_matrix_to_rgb(pruned)
-
-for i, p in enumerate(stem_path.points):
-    skel1[p] = colors[0]
-
-show_image(skel1)
-
-for path in paths:
-    for i, p in enumerate(path):
-        for point in p.points:
-            skel1[point] = colors[i%len(colors)]
-
-
-show_image(skel1)
-#show_image(pruned * distance, cmap='magma')
-"""
-
-"""
-print(len(skel[skel != 0]))
-G, nodes = pixel_graph(skel, connectivity=2)
-print(nodes)
-print(G)
-print(np.argwhere(nodes == ravel_idx(165, 145, 500)))
-"""
-
-
-
-
-"""
-print(ravel_idx(499, 499, 500))
-
-pt1 = ravel_idx(165, 145, 500)
-pt2 = ravel_idx(165, 91, 500)
-print(G[pt1])
-"""
-
-
-
+draw_graph(G, with_labels=True, node_color=node_color, node_size=20, invert_xaxis=False)
