@@ -4,10 +4,10 @@ from skimage.graph import pixel_graph
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-import bm3d
+#import bm3d
 import math
 
-from crf import CRF
+#from crf import CRF
 from preprocess import adjust_gamma, automatic_brightness_and_contrast, clahe_bgr, remove_cc, locate_seed_line
 from utils import find_file, show_image, f
 
