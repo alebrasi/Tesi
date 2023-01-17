@@ -10,7 +10,6 @@ import math
 import time
 
 from path_extraction.prune import prune_skeleton_branches
-from path_extraction.extract_roots import extract_plants_roots
 from path_extraction.algorithm import RootsExtraction
 
 from graph.graph_creation import create_graph, PointType
