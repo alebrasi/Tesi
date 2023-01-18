@@ -10,6 +10,7 @@ import math
 #from crf import CRF
 from preprocess import adjust_gamma, automatic_brightness_and_contrast, clahe_bgr, remove_cc, locate_seed_line
 from utils import find_file, show_image, f
+from path_extraction.extract_roots import find_nearest
 
 matplotlib.use('TKAgg')
 
@@ -19,7 +20,7 @@ mask_extension = 'bmp'
 image_extension = 'jpg'
 
 # 88R, 89R SUS
-# Fare test su 498
+# Fare test su 498 e 87R
 # 105
 image_name = '109'
 
@@ -251,12 +252,21 @@ for seed_bb in candidate_seeds_box:
             ok = False
 
     cv.rectangle(skeleton_color, (x, y), (x+w, y+h), (0, 255, 0), 1)
-    # Centroid
+    # Find, from the centroid, the nearest point on the stem
+    centroid = (y+h//2, x+w//2)
+    arr = skeleton[y:y+h, x:x+w]
+    nodes = np.argwhere(arr) + [y, x]
+    if len(nodes) > 0:
+        nearest = find_nearest(centroid, nodes)
+        a, b = nearest
+        seeds_pos.append((a, b))
+        skeleton_color[a, b] = (255,0,0)
+
     skeleton_color[y+h//2, x+w//2] = (0, 0, 255)
     bottom = cv.findNonZero(bottom)
     if bottom is not None:
         _, idx = bottom.flatten()
-        seeds_pos.append((y+h, x+idx))
+        #seeds_pos.append((y+h, x+idx))
         skeleton_color[y+h, x+idx] = (0, 0, 255)
 
 print(seeds_pos)
