@@ -92,9 +92,6 @@ def automatic_brightness_and_contrast(image, clip_hist_percent=1):
     #auto_result = cv.convertScaleAbs(image, alpha=alpha, beta=beta)
     return (auto_result, alpha, beta)
 
-# FIXME: Migliorare detection della linea. Da problemi con img 88R, 89R e simili. 
-# Provare a filtrare con houghlines mettendo come parametro di threshold un numero abbastanza alto
-# Oppure impostare una ROI rettangolare in corrispondenza, a grosso modo, della posizione della seed line
 def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10):
     """
     Returns the straighten up image and the extreme points of the seed line
@@ -136,8 +133,8 @@ def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10):
     This nearby lines are found in correspondence of the edge of the glass slide
     This is done in order to detect them and later removed
     """
-    ker = cv.getStructuringElement(cv.MORPH_RECT, (5, 5))
-    horizontal_lines = cv.morphologyEx(horizontal_lines, cv.MORPH_CLOSE, ker)
+    #ker = cv.getStructuringElement(cv.MORPH_RECT, (5, 5))
+    #horizontal_lines = cv.morphologyEx(horizontal_lines, cv.MORPH_CLOSE, ker)
     
     """
     horizontal_ker = cv.getStructuringElement(cv.MORPH_RECT, (10, 4))
@@ -153,7 +150,7 @@ def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10):
     for label, stat in enumerate(stats):
         w = stat[cv.CC_STAT_WIDTH]
         h = stat[cv.CC_STAT_HEIGHT]
-        if w < 40 or h > 6:
+        if w < 35 or h > 4:
             labels[labels == label] = 0
 
     labels[labels > 0] = 255
@@ -172,8 +169,9 @@ def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10):
     # Find the line that fits the set of horizontal lines
     [vx,vy,x,y] = cv.fitLine(cnt, cv.DIST_L2,0,0.01,0.01)
     alpha = math.degrees(math.atan(vy/vx))
-    #print(f'{alpha}')
-
+    print(f'{alpha}°')
+    #x = x + offset_x
+    #y = y + offset_y
     q = y - ((vy/vx)*x) 
     m = vy/vx
 
@@ -181,10 +179,12 @@ def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10):
     right_x = w-1
     # y = mx + q
     left_y = int((m * left_x) + q) + offset_y
-    right_y = int((m * right_x) + q) + offset_x
+    right_y = int((m * right_x) + q) + offset_y
 
-    #cv.line(img1, (left_x, left_y), (right_x, right_y),(0, 255, 0), 1)
-    #show_image(img1)
+    #print(f'l_x{}')
+
+    cv.line(img, (left_x, left_y), (right_x, right_y),(0, 255, 0), 1)
+    show_image(img)
 
     # Finding the rotation matrix and apply it in order to straighten up the image
     h, w = orig_img.shape[:2]
