@@ -21,8 +21,8 @@ image_extension = 'jpg'
 
 # 88R, 89R SUS
 # Fare test su 498 e 87R
-# 105
-image_name = '109'
+# 105, 950R
+image_name = '88R'
 
 mask_path = find_file(mask_path, f'{image_name}.{mask_extension}')
 img_path = find_file(image_path, f'{image_name}.{image_extension}')
