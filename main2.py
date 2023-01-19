@@ -34,7 +34,9 @@ print(f'Mask path: {mask_path}')
 
 img = cv.imread(img_path)
 
-img, left_pt, right_pt = locate_seed_line(img, 5)
+seed_line_roi = [[135, 0], [203, 499]]
+
+img, left_pt, right_pt = locate_seed_line(img, seed_line_roi, 5)
 
 orig_img = img.copy()
 
@@ -218,11 +220,6 @@ seeds_pos = []
 for seed_bb in candidate_seeds_box:
     x, y, w, h = seed_bb
 
-    """
-    TODO: Migliorare il controllo. Con l'immagine 105 ci sono 3 intersezioni (bottom)
-          Attualmente non tiene in conto in caso in cui il seme (scheletonizzato) intersechi solo il lato
-          destro o sinistro della bb
-    """
     ok = False
     while not ok:
         # Pixel intersection with each side of the rectangle bounding box
@@ -252,7 +249,8 @@ for seed_bb in candidate_seeds_box:
             ok = False
 
     cv.rectangle(skeleton_color, (x, y), (x+w, y+h), (0, 255, 0), 1)
-    # Find, from the centroid, the nearest point on the stem
+    # Find, from the centroid of the seed bounding box, the nearest point on the stem
+    #TODO: Fare dopo il prune delle radici
     centroid = (y+h//2, x+w//2)
     arr = skeleton[y:y+h, x:x+w]
     nodes = np.argwhere(arr) + [y, x]
