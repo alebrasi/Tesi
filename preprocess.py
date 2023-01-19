@@ -95,26 +95,36 @@ def automatic_brightness_and_contrast(image, clip_hist_percent=1):
 # FIXME: Migliorare detection della linea. Da problemi con img 88R, 89R e simili. 
 # Provare a filtrare con houghlines mettendo come parametro di threshold un numero abbastanza alto
 # Oppure impostare una ROI rettangolare in corrispondenza, a grosso modo, della posizione della seed line
-def locate_seed_line(img, seed_line_offset_px=-10):
+def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10):
     """
     Returns the straighten up image and the extreme points of the seed line
 
     Parameters:
     img: the image
+    rough_location (array): rough location of the seed line expressed as an array containing
+                    the top-left point and bottom-right point of the ROI in (y, x) format.
+    seed_line_offset_px (int): offset to apply to the found line extreme points (left_pt and right_pt)
 
     Returns:
     img: the straighten up image
     left_pt: a tuple containing the left point of the seed line in (x, y) format
     right_pt: a tuple containing the right point of the seed line in (x, y) format
     """
-    #SEED_LINE_OFFSET_PX = -10
 
     orig_img = img.copy()
+    offset_x = offset_y = 0
     
     img = ~cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+    if rough_location != None:
+        top_left_pt, bottom_right_pt = rough_location[0], rough_location[1]
+        tl_y, tl_x = top_left_pt
+        br_y, br_x = bottom_right_pt
+        img = img[tl_y:br_y, tl_x:br_x]
+        offset_x, offset_y = tl_x, tl_y
     show_image(img)
     img = cv.GaussianBlur(img, (3, 3), 0)
-    thresholded_img = cv.adaptiveThreshold(img, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 5, -2)
+    thresholded_img = cv.adaptiveThreshold(img, 255, cv.ADAPTIVE_THRESH_MEAN_C, 
+                                            cv.THRESH_BINARY, 5, -2)
     # Find horizontal lines with width >= 10px and height = 1px
     horizontal_ker = cv.getStructuringElement(cv.MORPH_RECT, (10, 1))
     horizontal_lines = cv.morphologyEx(thresholded_img, cv.MORPH_OPEN, horizontal_ker)
@@ -136,7 +146,8 @@ def locate_seed_line(img, seed_line_offset_px=-10):
     vertical_lines = cv.morphologyEx(vertical_lines, cv.MORPH_CLOSE, vertical_ker)
     """
 
-    _, labels, stats, _ =  cv.connectedComponentsWithStatsWithAlgorithm(horizontal_lines, 8, cv.CV_16U, cv.CCL_DEFAULT)
+    _, labels, stats, _ =  cv.connectedComponentsWithStatsWithAlgorithm(horizontal_lines, 8, 
+                                                                        cv.CV_16U, cv.CCL_DEFAULT)
 
     # Removing thick or short (horizontal) lines
     for label, stat in enumerate(stats):
@@ -149,7 +160,7 @@ def locate_seed_line(img, seed_line_offset_px=-10):
     labels = labels.astype(np.uint8)
     show_image(labels)
 
-    show_image(cv.bitwise_and(orig_img, orig_img, mask=labels))
+    #show_image(cv.bitwise_and(orig_img, orig_img, mask=labels))
 
     horizontal_lines = labels
 
@@ -167,15 +178,16 @@ def locate_seed_line(img, seed_line_offset_px=-10):
     m = vy/vx
 
     left_x = 1 
-    right_x = 499
+    right_x = w-1
     # y = mx + q
-    left_y = int((m * left_x) + q)
-    right_y = int((m * right_x) + q)
+    left_y = int((m * left_x) + q) + offset_y
+    right_y = int((m * right_x) + q) + offset_x
 
     #cv.line(img1, (left_x, left_y), (right_x, right_y),(0, 255, 0), 1)
     #show_image(img1)
 
     # Finding the rotation matrix and apply it in order to straighten up the image
+    h, w = orig_img.shape[:2]
     M = cv.getRotationMatrix2D((h//2, w//2), alpha, 1.0)
     img = cv.warpAffine(orig_img, M, (h, w))
     img1 = img.copy()
