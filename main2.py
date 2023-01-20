@@ -9,7 +9,7 @@ import argparse
 import sys
 
 from preprocess import adjust_gamma, automatic_brightness_and_contrast, clahe_bgr, remove_cc, locate_seed_line
-from utils import find_file, show_image, f
+from utils import find_file, show_image, f, DebugContext
 from path_extraction.extract_roots import find_nearest
 from path_extraction.prune import prune_skeleton_branches
 from graph_test import extraction
@@ -30,10 +30,15 @@ image_name = '88R'
 parser = argparse.ArgumentParser()
 parser.add_argument('image_name', metavar='IMG')
 parser.add_argument('--no_extraction', action='store_true')
+parser.add_argument('--d_seed_line', action='store_true', default=False)
+parser.add_argument('--d_post_process', action='store_true', default=False)
 
 args = parser.parse_args()
 no_extraction = args.no_extraction
 image_name = args.image_name
+
+dbg_ctx_seed_line = DebugContext('seed_line', args.d_seed_line)
+dbg_ctx_post = DebugContext('post_process', args.d_post_process)
 
 mask_path = find_file(mask_path, f'{image_name}.{mask_extension}')
 img_path = find_file(image_path, f'{image_name}.{image_extension}')
@@ -47,18 +52,18 @@ img = cv.imread(img_path)
 
 seed_line_roi = [[135, 0], [203, 499]]
 
-img, left_pt, right_pt = locate_seed_line(img, seed_line_roi, 5)
+img, left_pt, right_pt = locate_seed_line(img, seed_line_roi, 5, dbg_ctx=dbg_ctx_seed_line)
 
 orig_img = img.copy()
 
 h, w = img.shape[:2]
 seed_line = np.zeros((h, w), dtype=np.uint8)
 cv.line(seed_line, left_pt, right_pt, 255, 1)
-show_image(seed_line)
-show_image(img)
+show_image(seed_line, dbg_ctx=dbg_ctx_seed_line)
+show_image(img, dbg_ctx=dbg_ctx_seed_line)
 
 mask = cv.imread(mask_path, cv.COLOR_BGR2GRAY)
-show_image(mask)
+show_image(mask, dbg_ctx=dbg_ctx_seed_line)
 
 # ------------------- Mask refinement
 
@@ -70,21 +75,21 @@ mask = cv.morphologyEx(mask, cv.MORPH_CLOSE, ker)
 ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
 mask[left_pt[1]:, :] = cv.morphologyEx(
     mask[left_pt[1]:, :], cv.MORPH_DILATE, ker)
-show_image(mask)
+show_image(mask, dbg_ctx=dbg_ctx_post)
 
 segmented = cv.bitwise_and(img, img, mask=mask)
 
 f_img, alpha, beta = automatic_brightness_and_contrast(
     segmented, 10)  # TODO: Sperimentare sul clip limit
-show_image(f_img)
+show_image(f_img, dbg_ctx=dbg_ctx_post)
 clahe_img = clahe_bgr(f_img, 1, (30, 30))
 
-show_image([f_img, clahe_img])
+show_image([f_img, clahe_img], dbg_ctx=dbg_ctx_post)
 
 # Gamma adjustment
 l = adjust_gamma(clahe_img, 1.5)
 l1 = cv.equalizeHist(l)
-show_image([l, l1])
+show_image([l, l1], dbg_ctx=dbg_ctx_post)
 
 # Removing noise due to gamma adjustment
 _, l = cv.threshold(l, 25, 255, cv.THRESH_TOZERO)
@@ -166,7 +171,7 @@ for ker in diag_ker:
 # Remove background pixel surrounded by foreground pixel
 one_px_gap = cv.morphologyEx(cc_rem, cv.MORPH_HITMISS, one_px_ker)
 cc_rem = cc_rem + one_px_gap
-show_image([bak, (cc_rem, "cc")])
+show_image([bak, (cc_rem, "cc")], dbg_ctx=dbg_ctx_post)
 
 # ------------------ Finding seeds
 
@@ -179,7 +184,7 @@ rx = w if rx > w else rx
 seed_roi = orig_img[:ly, lx:rx, ...]
 hsv = cv.cvtColor(seed_roi, cv.COLOR_BGR2HSV)
 res = cv.inRange(hsv, (15, 80, 100), (35, 255, 255))
-show_image([res, seed_roi[..., ::-1]])
+show_image([res, seed_roi[..., ::-1]], dbg_ctx=dbg_ctx_post)
 
 ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
 ker2 = cv.getStructuringElement(cv.MORPH_ELLIPSE, (25, 25))
@@ -206,12 +211,12 @@ for i, stat in enumerate(stats[1:]):
 
         cv.rectangle(img, (x, y), (x+width, y+height), (0, 255, 0), 1)
 
-show_image(labels, cmap='magma')
-show_image(img)
+show_image(labels, cmap='magma', dbg_ctx=dbg_ctx_post)
+show_image(img, dbg_ctx=dbg_ctx_post)
 # -------------------
 
 cv.imwrite('res.png', cc_rem)
-show_image([blurred, cc_rem])
+show_image([blurred, cc_rem], dbg_ctx=dbg_ctx_post)
 # Mask normalization for skeletonize
 cv.imwrite('skel.png', cc_rem)
 cc_rem[cc_rem == 255] = 1
@@ -220,7 +225,7 @@ skeleton = skeletonize(cc_rem)
 #from path_extraction.prune import prune_skeleton_branches
 #_, pruned = prune_skeleton_branches(seeds, skel)
 
-show_image([skeleton, medial_axis(cc_rem)])
+show_image([skeleton, medial_axis(cc_rem)], dbg_ctx=dbg_ctx_post)
 
 skeleton, dist = medial_axis(cc_rem, return_distance=True)
 skeleton = skeleton.astype(np.uint8)
@@ -284,7 +289,7 @@ for seed_bb in candidate_seeds_box:
 print(seeds_pos)
 
 
-show_image([skeleton_color, orig_img])
+show_image([skeleton_color, orig_img], dbg_ctx=dbg_ctx_post)
 
 if no_extraction:
     sys.exit()
