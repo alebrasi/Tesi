@@ -16,87 +16,84 @@ from graph.graph_creation import create_graph, PointType
 from graph.graph_drawing import draw_graph
 from graph.algorithm import extract
 from graph.plant import Plant
+from utils import find_file
 
-def ravel_idx(x, y, width):
-    return (y * width) + x
 
 def boolean_matrix_to_rgb(m):
     m = m.copy().astype(np.uint8)
     m[m == 1] = 255
     return cv.cvtColor(m, cv.COLOR_GRAY2BGR)
 
+def extraction(seeds, skel, distance, orig_img):
+    skel2 = boolean_matrix_to_rgb(skel)
 
-skel = cv.imread('skel.png', cv.COLOR_BGR2GRAY)
-# TODO: Controllare il comportamento di medial_axis
-skel, distance = medial_axis(skel, return_distance=True)
+    G = create_graph(seeds, skel, distance)
+    color_map = { 
+                    PointType.NODE:'lightgreen', 
+                    PointType.SOURCE:'red', 
+                    PointType.TIP:'orange' 
+                }
 
-skel1 = boolean_matrix_to_rgb(skel)
+    node_color = [ color_map[G.nodes[node]['node_type']] for node in G ]
 
-a = skel * distance
+    print(orig_img.shape)
+    draw_graph(G, with_labels=True, node_color=node_color, node_size=20)
+    # FIXME: la 88R va in loop
+    plants = extract(G)
 
-seeds = [(164, 172), (166, 255), (166, 340)]
+    all_p = orig_img
+    all_p[skel, ...] = [0,0,0]
+    cv.namedWindow('image', cv.WINDOW_FULLSCREEN)
 
-# Skeleton branch prune
-_, pruned = prune_skeleton_branches(seeds, skel.copy())
+    for i, plant in enumerate(plants, 0):
+        print(f'Plant: {i}')
+        print(f'Num roots: {len(plant.roots)}')
+        mask = np.zeros((500, 500, 3))
+        for root in plant.roots:
+            print(root.edges)
+            print(root._edges)
+            print(root._split_node)
+            print('\n\n\n')
+            color1 = (list(np.random.choice(range(256), size=3)))  
+            points = np.array(root.points)
+            for point in points:
+                #print(point)
+                y, x = point
+                
+                mask[y, x, i] = 255
+                all_p[y, x, :] = color1
+                cv.imshow('image', all_p.astype(np.uint8))
+                cv.waitKey(1)
+                time.sleep(0.01)
+    print('Done!')
+    while True:
+        if cv.waitKey(20) & 0xFF == 27:
+            break
 
-#show_image(pruned * distance, cmap='magma')
-# Done just for retrieving the valid root tips.
-# Can be swapped with a more efficient function
-tips, pruned = prune_skeleton_branches(seeds, pruned) 
-#tips, pruned = prune_skeleton_branches(seeds, pruned) 
+    cv.destroyAllWindows()
 
-skel2 = boolean_matrix_to_rgb(pruned)
+    draw_graph(G, with_labels=True, node_color=node_color, node_size=20, invert_xaxis=False)
 
-for tip in tips:
-    skel2[tip] = (0, 255, 0)
+if __name__ == '__main__':
+    dataset_path = '/home/alebrasi/Documents/tesi/Dataset'
+    img_name = '88R'
 
-#show_image([skel2, skel1])
+    #seeds = [(146, 165), (149, 255), (151, 345)]
+    #seeds = [(164, 172), (166, 255), (166, 340)]
+    #seeds = [(147, 333), (150, 145), (156, 241)]
+    seeds = [(138, 319), (141, 136), (140, 229)]
 
-G = create_graph(seeds, pruned, distance)
-color_map = { 
-                PointType.NODE:'lightgreen', 
-                PointType.SOURCE:'red', 
-                PointType.TIP:'orange' 
-            }
+    img_path = find_file(dataset_path, img_name)
+    img = cv.imread(img_path)
 
-node_color = [ color_map[G.nodes[node]['node_type']] for node in G ]
+    skel = cv.imread('skel.png', cv.COLOR_BGR2GRAY)
+    # TODO: Controllare il comportamento di medial_axis
+    skel, distance = medial_axis(skel, return_distance=True)
 
-draw_graph(G, with_labels=True, node_color=node_color, node_size=20)
 
-plants = extract(G)
+    a = skel * distance
 
-all_p = np.ones((500, 500, 3))
-cv.namedWindow('image', cv.WINDOW_FULLSCREEN)
+    _, pruned = prune_skeleton_branches(seeds, skel)
+    extraction(seeds, pruned, distances, img)
 
-for i, plant in enumerate(plants, 0):
-    print(f'Plant: {i}')
-    print(f'Num roots: {len(plant.roots)}')
-    mask = np.zeros((500, 500, 3))
-    for root in plant.roots:
-        print(root.edges)
-        print(root._edges)
-        print(root._split_node)
-        print('\n\n\n')
-        color1 = (list(np.random.choice(range(256), size=3)))  
-        points = np.array(root.points)
-        for point in points:
-            #print(point)
-            y, x = point
-            
-            mask[y, x, i] = 255
-            all_p[y, x, :] = color1
-            cv.imshow('image', all_p.astype(np.uint8))
-            cv.waitKey(1)
-            time.sleep(0.01)
-        #plt.imshow(mask.astype(np.uint8))
-        #plt.show()
-print('Done!')
-while True:
-    if cv.waitKey(20) & 0xFF == 27:
-        break
 
-cv.destroyAllWindows()
-#plt.imshow(all_p)
-#plt.show()
-
-draw_graph(G, with_labels=True, node_color=node_color, node_size=20, invert_xaxis=False)
