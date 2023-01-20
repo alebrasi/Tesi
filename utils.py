@@ -40,7 +40,24 @@ def f(img, alpha=2.0, beta=-200):
 	img = np.clip((img * alpha) + beta, 0, 255).astype(np.uint8)
 	return img
 
-def show_image(imgs, cmap='gray', cols=2):
+class DebugContext:
+	def __init__(self, name, active=True):
+		self._name = name
+		self._is_active = active
+
+	@property
+	def name(self):
+		return self._name
+
+	@property
+	def is_active(self):
+		return self._is_active
+
+def show_image(imgs, cmap='gray', cols=2, dbg_ctx=None):
+	if dbg_ctx != None:
+		if not dbg_ctx.is_active:
+			return
+
 	n_imgs = len(imgs)
 	rows = (n_imgs // cols) + 1
 
