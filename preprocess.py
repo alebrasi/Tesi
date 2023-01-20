@@ -92,7 +92,7 @@ def automatic_brightness_and_contrast(image, clip_hist_percent=1):
     #auto_result = cv.convertScaleAbs(image, alpha=alpha, beta=beta)
     return (auto_result, alpha, beta)
 
-def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10):
+def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10, dbg_ctx=None):
     """
     Returns the straighten up image and the extreme points of the seed line
 
@@ -118,7 +118,7 @@ def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10):
         br_y, br_x = bottom_right_pt
         img = img[tl_y:br_y, tl_x:br_x]
         offset_x, offset_y = tl_x, tl_y
-    show_image(img)
+    show_image(img, dbg_ctx=dbg_ctx)
     img = cv.GaussianBlur(img, (3, 3), 0)
     thresholded_img = cv.adaptiveThreshold(img, 255, cv.ADAPTIVE_THRESH_MEAN_C, 
                                             cv.THRESH_BINARY, 5, -2)
@@ -155,7 +155,7 @@ def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10):
 
     labels[labels > 0] = 255
     labels = labels.astype(np.uint8)
-    show_image(labels)
+    show_image(labels, dbg_ctx=dbg_ctx)
 
     #show_image(cv.bitwise_and(orig_img, orig_img, mask=labels))
 
@@ -184,7 +184,7 @@ def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10):
     #print(f'l_x{}')
 
     cv.line(img, (left_x, left_y), (right_x, right_y),(0, 255, 0), 1)
-    show_image(img)
+    show_image(img, dbg_ctx=dbg_ctx)
 
     # Finding the rotation matrix and apply it in order to straighten up the image
     h, w = orig_img.shape[:2]
