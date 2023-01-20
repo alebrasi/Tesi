@@ -4,13 +4,15 @@ from skimage.graph import pixel_graph
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-#import bm3d
 import math
+import argparse
+import sys
 
-#from crf import CRF
 from preprocess import adjust_gamma, automatic_brightness_and_contrast, clahe_bgr, remove_cc, locate_seed_line
 from utils import find_file, show_image, f
 from path_extraction.extract_roots import find_nearest
+from path_extraction.prune import prune_skeleton_branches
+from graph_test import extraction
 
 matplotlib.use('TKAgg')
 
@@ -23,6 +25,15 @@ image_extension = 'jpg'
 # Fare test su 498 e 87R
 # 105, 950R
 image_name = '88R'
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument('image_name', metavar='IMG')
+parser.add_argument('--no_extraction', action='store_true')
+
+args = parser.parse_args()
+no_extraction = args.no_extraction
+image_name = args.image_name
 
 mask_path = find_file(mask_path, f'{image_name}.{mask_extension}')
 img_path = find_file(image_path, f'{image_name}.{image_extension}')
@@ -211,11 +222,13 @@ skeleton = skeletonize(cc_rem)
 
 show_image([skeleton, medial_axis(cc_rem)])
 
-skeleton = medial_axis(cc_rem).astype(np.uint8)
+skeleton, dist = medial_axis(cc_rem, return_distance=True)
+skeleton = skeleton.astype(np.uint8)
 skeleton[skeleton == 1] = 255
 skeleton_color = cv.cvtColor(skeleton, cv.COLOR_GRAY2BGR)
 
 seeds_pos = []
+seeds_bb = []
 
 for seed_bb in candidate_seeds_box:
     x, y, w, h = seed_bb
@@ -248,6 +261,7 @@ for seed_bb in candidate_seeds_box:
             w = w-1
             ok = False
 
+    seeds_bb.append([x, y, w, h])
     cv.rectangle(skeleton_color, (x, y), (x+w, y+h), (0, 255, 0), 1)
     # Find, from the centroid of the seed bounding box, the nearest point on the stem
     #TODO: Fare dopo il prune delle radici
@@ -271,28 +285,36 @@ print(seeds_pos)
 
 
 show_image([skeleton_color, orig_img])
-"""
-res = cv.bitwise_and(img, img, mask=cc_rem)
 
-show_image(res)
+if no_extraction:
+    sys.exit()
 
-show_image([(l, 'Grayscale immagine rifinita'), (cc_rem, 'threshold'), (skeleton, 'skeleton maschera rifinita')])
-"""
+skeleton = skeleton.astype(bool)
+_, pruned = prune_skeleton_branches(seeds_pos, skeleton)
+_, pruned = prune_skeleton_branches(seeds_pos, pruned, branch_threshold_len=4)
+print('pruned')
+show_image(pruned)
+seeds_pos = []
+for bb in seeds_bb:
+    x, y, w, h = bb
+
+    centroid = (y+h//2, x+w//2)
+    arr = pruned[y:y+h, x:x+w]
+    nodes = np.argwhere(arr) + [y, x]
+    if len(nodes) > 0:
+        nearest = find_nearest(centroid, nodes)
+        a, b = nearest
+        seeds_pos.append((a, b))
+
+print(seeds_pos)
+extraction(seeds_pos, pruned, dist, orig_img)
+
+
+
 # Per il prune dello scheletro guardare nella cartella download 'Skeleton2Graph'
 # https://ehu.eus/ccwintco/index.php?title=Skeletonization,_skeleton_pruning_and_simple_skeleton_graph_construction_example_in_Matlab
 # http://www.ehu.es/ccwintco/uploads/a/a0/Skeleton2Graph.zip
 
 # Codice originale
 # https://cis.temple.edu/~latecki/Programs/BaiSkeletonPruningDCE.zip
-"""
-skel, distance = medial_axis(cc_rem, return_distance=True)
 
-# Distance to the background for pixels of the skeleton
-dist_on_skel = distance * skel
-
-show_image(dist_on_skel, cmap='magma')
-
-dist = cv.distanceTransform(cc_rem, cv.DIST_L2, cv.DIST_MASK_PRECISE)
-
-show_image(dist)
-"""
