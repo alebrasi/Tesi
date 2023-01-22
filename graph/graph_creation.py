@@ -37,7 +37,7 @@ def walk_to_node(sender_p, start_p):
 
     prev_point = sender_p
     cur_point = start_p
-    path = []
+    path = [sender_p]
     res = PointType.NODE
 
     while True:
@@ -136,6 +136,7 @@ def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_ls
         # (we don't know if the point is actually the seed node)
         # which will be the seed node
         n = valid_neighbors(seed, root_neighbors, skel, return_idx=True)
+        # FIXME: Trovare un metodo più robusto
         start_point = list(map(lambda n: n[1] if n[0] > 5 else None, n))[-1]
         _, path = walk_to_node(seed, start_point)
         cur_node = path.endpoint
@@ -149,7 +150,7 @@ def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_ls
 
         G.add_node(cur_node, node_type=PointType.SOURCE)
         queue.put(cur_node)
-
+        # FIXME: In segmenti lunghi 3 non mette l'arco
         while not queue.empty():
             cur_node = queue.get()
 
@@ -159,7 +160,8 @@ def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_ls
             for n in node_neighbours:
                 visited_nodes_neighbours.add(n)
                 endpoint_type, walked_path = walk_to_node(cur_node, n)
-                if walked_path.penultimate_point not in visited_nodes_neighbours:
+                # FIXME: PRIORITA' LIVELLO 1. Gestire il caso speciale in cui il segmento è lungo solamente 3: il penultimate point coincide con l'ultimo
+                if walked_path.lenght == 3 or walked_path.penultimate_point not in visited_nodes_neighbours:
                     add_nodes_and_edges(G, 
                                         cur_node, 
                                         walked_path, 
@@ -167,6 +169,9 @@ def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_ls
                                         min_points_lstsq)
 
                     if endpoint_type is not PointType.TIP:
+                        # FIXME: Quando ci sono dei loop alcune volte non va(vedi 88R)
+                        # Forse è fixato?
+                        #if walked_path.penultimate_point not in node_neighbours:
                         queue.put(walked_path.endpoint)
                     else:
                         G.nodes[walked_path.endpoint]['node_type'] = PointType.TIP
