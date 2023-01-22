@@ -13,7 +13,7 @@ class Root:
     def attach_graph(G):
         Root.G = G
 
-    def __init__(self, plant, start_edge, ema_alpha=0.5):
+    def __init__(self, plant, start_edge, ema_alpha=0.20):
         self._edges = set()
         self._cur_edge = None
         self._prev_angle_ema = None
@@ -168,7 +168,7 @@ class Root:
         return self._cur_edge
 
     def _calc_ema(self, ema, angle, alpha):
-        return (alpha * angle) + ((1 - alpha) * angle)
+        return (alpha * angle) + ((1 - alpha) * ema)
 
     def _update_angle_EMA(self, edge):
         """
@@ -252,7 +252,7 @@ class Root:
             return True
 
         # There are more neighbors
-
+        
         min_edge = min(res, key=lambda n: n[1])[0]
         self._add_edge((cur_node, min_edge))
 
