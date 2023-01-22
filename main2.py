@@ -33,12 +33,20 @@ parser.add_argument('--no_extraction', action='store_true')
 parser.add_argument('--d_seed_line', action='store_true', default=False)
 parser.add_argument('--d_post_process', action='store_true', default=False)
 
+d_seed_line = False
+d_post_process = False
+no_extraction = False
+
+#"""
 args = parser.parse_args()
 no_extraction = args.no_extraction
 image_name = args.image_name
+d_seed_line = args.d_seed_line
+d_post_process = args.d_post_process
+#"""
 
-dbg_ctx_seed_line = DebugContext('seed_line', args.d_seed_line)
-dbg_ctx_post = DebugContext('post_process', args.d_post_process)
+dbg_ctx_seed_line = DebugContext('seed_line', d_seed_line)
+dbg_ctx_post = DebugContext('post_process', d_post_process)
 
 mask_path = find_file(mask_path, f'{image_name}.{mask_extension}')
 img_path = find_file(image_path, f'{image_name}.{image_extension}')
@@ -73,14 +81,20 @@ mask = cv.morphologyEx(mask, cv.MORPH_CLOSE, ker)
 
 # Dilation from the seed line and below in order to account for segmentation errors
 ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
-mask[left_pt[1]:, :] = cv.morphologyEx(
-    mask[left_pt[1]:, :], cv.MORPH_DILATE, ker)
+#mask[left_pt[1]:, :] = cv.morphologyEx(
+#    mask[left_pt[1]:, :], cv.MORPH_DILATE, ker)
 show_image(mask, dbg_ctx=dbg_ctx_post)
 
 segmented = cv.bitwise_and(img, img, mask=mask)
 
-f_img, alpha, beta = automatic_brightness_and_contrast(
-    segmented, 10)  # TODO: Sperimentare sul clip limit
+lab = cv.cvtColor(segmented, cv.COLOR_BGR2LAB)
+l, a, b = cv.split(lab)
+
+clahe = cv.createCLAHE(clipLimit=1.0, tileGridSize=(50, 50))
+bleh = clahe.apply(l)
+bleh = cv.merge([l,a,b])
+segmented = cv.cvtColor(bleh, cv.COLOR_LAB2BGR)
+f_img, alpha, beta = automatic_brightness_and_contrast(segmented, 60)  # TODO: Sperimentare sul clip limit
 show_image(f_img, dbg_ctx=dbg_ctx_post)
 clahe_img = clahe_bgr(f_img, 1, (30, 30))
 
@@ -294,9 +308,27 @@ show_image([skeleton_color, orig_img], dbg_ctx=dbg_ctx_post)
 if no_extraction:
     sys.exit()
 
+# -----------Skeleton refinement
+"""
+Create a kernel that detects greek cross without the center point
+
+            0 # 0             0 # 0
+            # 0 #    ---->    # # #
+            0 # 0             0 # 0
+"""
+ker = np.array([[-1 , 1, -1],
+                [ 1, -1,  1],
+                [-1,  1, -1]])
+hollow_center_cross = cv.morphologyEx(skeleton, cv.MORPH_HITMISS, ker)
+skeleton = hollow_center_cross + skeleton
 skeleton = skeleton.astype(bool)
+# ---------------
+# FIXME: Sistemare il prune oppure fare quello morfologico che è anche più semplice (sigh)
+# TODO: nel prune mettere secondo threshold che si attiva solo ad una determinata altezza
 _, pruned = prune_skeleton_branches(seeds_pos, skeleton)
 _, pruned = prune_skeleton_branches(seeds_pos, pruned, branch_threshold_len=4)
+
+
 print('pruned')
 show_image(pruned)
 seeds_pos = []
