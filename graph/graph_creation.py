@@ -150,7 +150,6 @@ def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_ls
 
         G.add_node(cur_node, node_type=PointType.SOURCE)
         queue.put(cur_node)
-        # FIXME: In segmenti lunghi 3 non mette l'arco
         while not queue.empty():
             cur_node = queue.get()
 
@@ -158,10 +157,8 @@ def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_ls
             node_neighbours = [ n for n in node_neighbours if n not in visited_nodes_neighbours ]
 
             for n in node_neighbours:
-                visited_nodes_neighbours.add(n)
                 endpoint_type, walked_path = walk_to_node(cur_node, n)
-                # FIXME: PRIORITA' LIVELLO 1. Gestire il caso speciale in cui il segmento è lungo solamente 3: il penultimate point coincide con l'ultimo
-                if walked_path.lenght == 3 or walked_path.penultimate_point not in visited_nodes_neighbours:
+                if walked_path.penultimate_point not in visited_nodes_neighbours:
                     add_nodes_and_edges(G, 
                                         cur_node, 
                                         walked_path, 
@@ -175,6 +172,8 @@ def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_ls
                         queue.put(walked_path.endpoint)
                     else:
                         G.nodes[walked_path.endpoint]['node_type'] = PointType.TIP
+                
+                visited_nodes_neighbours.add(n)
 
     H = nx.convert_node_labels_to_integers(G, label_attribute='pos')
     
