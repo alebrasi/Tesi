@@ -1,4 +1,7 @@
 import queue
+import numpy as np
+import cv2 as cv
+from utils import show_image
 
 # TODO: Spostare tutto nella classe RootsExtraction
 
@@ -122,3 +125,61 @@ def prune_skeleton_branches(seeds, skel, branch_threshold_len=6):
                 cur_path.append(cur_node)
 
     return tips, skel
+
+
+def prune2(skel, thr):
+    s = skel.copy()
+    s = s.astype(np.uint8)
+    orig = s.copy()
+    kers = []
+    kers.append(np.array([[0, -1, -1],
+                          [ 1, 1, -1],
+                          [0, -1, -1]]))
+    
+    kers.append(np.array([[0, 1, 0],
+                          [ -1, 1,  -1],
+                          [ -1, -1,  -1]]))
+
+    kers.append(np.array([[-1, -1, 0],
+                          [-1, 1,  1],
+                          [-1, -1, 0]]))
+
+    kers.append(np.array([[ -1, -1,  -1],
+                          [ -1, 1,  -1],
+                          [0, 1, 0]]))
+
+    kers.append(np.array([[1, -1, -1],
+                          [-1, 1, -1],
+                          [-1, -1, -1]]))
+
+    kers.append(np.array([[-1, -1, 1],
+                          [-1, 1, -1],
+                          [-1, -1, -1]]))
+
+    kers.append(np.array([[-1, -1, -1],
+                          [-1, 1, -1],
+                          [-1, -1, 1]]))
+
+    kers.append(np.array([[-1, -1, -1],
+                          [-1, 1, -1],
+                          [1, -1, -1]]))
+
+    # Thinning
+    for i in range(thr):
+        for ker in kers:
+            morphed = cv.morphologyEx(s, cv.MORPH_HITMISS, ker)
+            s -= morphed
+
+    # Find end points
+    endpoints = np.zeros_like(s)
+    for ker in kers:
+        tmp = cv.morphologyEx(s, cv.MORPH_HITMISS, ker)
+        endpoints += tmp
+
+    # Dilate end points
+    dilate_ker = np.ones((3, 3))
+    endpoints = cv.dilate(endpoints, dilate_ker, iterations=thr)
+    endpoints = cv.bitwise_and(endpoints, endpoints, mask=orig)
+    # Union
+    s += endpoints
+    return s
