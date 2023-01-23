@@ -15,12 +15,23 @@ class Plant:
         #self._roots = set()
         self._roots = []
         self._current_root = None
+        self._stem = None
         self._tip_start_node = tip_start_node
         self._seed_node_neighbors = list(type(self).G.neighbors(seed))
         self._seed_node_neighbors.remove(tip_start_node)
         type(self).G.edges[(seed, tip_start_node)]['walked'] = True
 
         self._init_new_root()
+        self._find_stem()
+
+    @property
+    def stem(self):
+        return self._stem
+
+    def _find_stem(self):
+        self._stem = Root(self, (self._seed, self._tip_start_node))
+        while self._stem.explore():
+            continue
 
     def _init_new_root_starting_from_seed(self):
         n = self._seed_node_neighbors.pop()
