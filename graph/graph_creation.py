@@ -101,6 +101,37 @@ def add_nodes_and_edges(G, source_node, walked_path, max_res_err, min_points):
 
         prev_path_endpoint = path.endpoint
 
+
+def find_forking_node(seed, skel):
+    """
+    Finds the forking node, where roots will start.
+    It works by walking all the seed neighbors until a node/tip is found.
+    From the walked paths, the lowest point (in this case higher because the y axis grows going down)
+    is searched in the paths and, from the path that it is contained, the endpoint is taken.
+    The endpoint will be the forking node
+
+    Parameters:
+    seed (tuple): point, in (y, x) format, that describes where the seed is located
+    skel (numpy.ndarray): boolean matrix containing the skeletonized image
+    """
+    neighbors = valid_neighbors(seed, root_neighbors, skel)    
+
+    lowest_y = float('-inf')
+    lowest_point = None
+
+    for n in neighbors:
+        _, path = walk_to_node(seed, n)
+        # The y axis grows going down
+        lowest_y_p = max(path.points, 
+                         key=lambda p: float(p[0])  # key = y coordinate of point
+                         )[0]   # grabs only the y coordinate
+
+        if lowest_y_p > lowest_y:
+            lowest_point = path.endpoint
+            lowest_y = lowest_y_p
+
+    return lowest_point
+
 def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_lstsq=4):
     """
     Creates a networkx directed graph of the plant.
@@ -135,11 +166,7 @@ def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_ls
         # Walks to the first node that is below the given seed point 
         # (we don't know if the point is actually the seed node)
         # which will be the seed node
-        n = valid_neighbors(seed, root_neighbors, skel, return_idx=True)
-        # FIXME: Trovare un metodo più robusto
-        start_point = list(map(lambda n: n[1] if n[0] > 5 else None, n))[-1]
-        _, path = walk_to_node(seed, start_point)
-        cur_node = path.endpoint
+        cur_node = find_forking_node(seed, skel)
 
         # If the seed node is already in the graph, it means that the previous
         # exploration (started from the previous seed) already visited all the plant
@@ -166,14 +193,28 @@ def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_ls
                                         min_points_lstsq)
 
                     if endpoint_type is not PointType.TIP:
-                        # FIXME: Quando ci sono dei loop alcune volte non va(vedi 88R)
-                        # Forse è fixato?
-                        #if walked_path.penultimate_point not in node_neighbours:
-                        queue.put(walked_path.endpoint)
+                        if walked_path.penultimate_point not in node_neighbours:
+                            queue.put(walked_path.endpoint)
                     else:
                         G.nodes[walked_path.endpoint]['node_type'] = PointType.TIP
                 
                 visited_nodes_neighbours.add(n)
+                #visited_nodes_neighbours.add(walked_path.penultimate_point)
+
+    """
+    Very cheap labeling fix when there are loops like this:
+    
+            #
+           #
+          # #
+         #  #
+        #  #
+         ##
+    """
+    # TODO: Fare un fix migliore
+    for node in G.nodes:
+        if G.nodes[node]['node_type'] == PointType.NODE and len(list(G.neighbors(node))) == 1:
+            G.nodes[node]['node_type'] = PointType.TIP
 
     H = nx.convert_node_labels_to_integers(G, label_attribute='pos')
     
