@@ -54,7 +54,7 @@ def extraction(seeds, skel, distance, orig_img):
             print(root._edges)
             print(root._split_node)
             print('\n\n\n')
-            color1 = (list(np.random.choice(range(256), size=3)))  
+            color1 = (list(np.random.choice(range(150, 255), size=3)))  
             points = np.array(root.points)
             for point in points:
                 #print(point)
@@ -65,6 +65,16 @@ def extraction(seeds, skel, distance, orig_img):
                 cv.imshow('image', all_p.astype(np.uint8))
                 cv.waitKey(1)
                 time.sleep(0.01)
+        
+        print('Stem:')
+        points = np.array(plant.stem.points)
+        print(plant.stem.edges)
+        for point in points:
+            y, x = point
+            all_p[y, x, :] = (0, 255 , 0)
+            cv.imshow('image', all_p.astype(np.uint8))
+            cv.waitKey(1)
+            time.sleep(0.01)
     print('Done!')
     while True:
         if cv.waitKey(20) & 0xFF == 27:
