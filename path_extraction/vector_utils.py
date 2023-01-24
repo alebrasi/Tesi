@@ -31,7 +31,7 @@ class Vector:
 
     @property
     def angle(self):
-        angle = math.atan2(self._v[1], self._v[0])
+        angle = math.atan2(self.y, self.x)
         angle = math.degrees(angle)
         return int(angle + 360 * (1 if angle < 0 else 0))
 
