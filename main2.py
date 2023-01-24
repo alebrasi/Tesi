@@ -10,9 +10,16 @@ import sys
 
 from preprocess import adjust_gamma, automatic_brightness_and_contrast, clahe_bgr, remove_cc, locate_seed_line
 from utils import find_file, show_image, f, DebugContext
-from path_extraction.extract_roots import find_nearest
-from path_extraction.prune import prune_skeleton_branches
+from path_extraction.prune import prune_skeleton_branches, prune3
 from graph_test import extraction
+
+def find_nearest(node, nodes):
+    node = np.array(node)
+    nodes = np.array(nodes)
+    d = np.linalg.norm(node-nodes, axis = 1)
+    p = np.argmin(d)
+
+    return nodes[p]
 
 matplotlib.use('TKAgg')
 
@@ -24,7 +31,7 @@ image_extension = 'jpg'
 # 88R, 89R SUS
 # Fare test su 498 e 87R
 # 105, 950R
-image_name = '88R'
+image_name = '105'
 
 
 parser = argparse.ArgumentParser()
@@ -37,13 +44,13 @@ d_seed_line = False
 d_post_process = False
 no_extraction = False
 
-#"""
+
 args = parser.parse_args()
 no_extraction = args.no_extraction
 image_name = args.image_name
 d_seed_line = args.d_seed_line
 d_post_process = args.d_post_process
-#"""
+
 
 dbg_ctx_seed_line = DebugContext('seed_line', d_seed_line)
 dbg_ctx_post = DebugContext('post_process', d_post_process)
@@ -321,16 +328,18 @@ ker = np.array([[-1 , 1, -1],
                 [-1,  1, -1]])
 hollow_center_cross = cv.morphologyEx(skeleton, cv.MORPH_HITMISS, ker)
 skeleton = hollow_center_cross + skeleton
-skeleton = skeleton.astype(bool)
+#skeleton = skeleton.astype(bool)
 # ---------------
-# FIXME: Sistemare il prune oppure fare quello morfologico che è anche più semplice (sigh)
 # TODO: nel prune mettere secondo threshold che si attiva solo ad una determinata altezza
-_, pruned = prune_skeleton_branches(seeds_pos, skeleton)
-_, pruned = prune_skeleton_branches(seeds_pos, pruned, branch_threshold_len=4)
 
+pruned = prune3(skeleton, 6)
+pruned = prune3(pruned, 2)
+
+show_image([skeleton, pruned])
+
+pruned = pruned.astype(bool)
 
 print('pruned')
-show_image(pruned)
 seeds_pos = []
 for bb in seeds_bb:
     x, y, w, h = bb
