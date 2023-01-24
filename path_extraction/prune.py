@@ -2,7 +2,13 @@ import queue
 import numpy as np
 import cv2 as cv
 from utils import show_image
+from path_extraction.path import Path
+from enum import Enum
 
+class PointType(Enum):
+    TIP = 0,
+    NODE = 1,
+    SOURCE = 2
 # TODO: Spostare tutto nella classe RootsExtraction
 
 # Moore neighbor
@@ -25,9 +31,12 @@ def valid_neighbors(p, neighbor_func, skel, return_idx=False):
     Parameters:
         p (tuple): The point
     """
+    h, w = skel.shape[:2]
+    is_valid = lambda p: p[0] < h and p[0] >= 0 and p[1] < w and p[1] >= 0
 
     n = neighbor_func(p)
-    valid = [ skel[i] for i in n ]
+    #valid = [ skel[i] for i in n ]
+    valid = [ skel[i] if is_valid(i) else False for i in n ]
     valid[idx(1, 1)] = False
 
     if valid[idx(0, 1)]:
@@ -183,3 +192,110 @@ def prune2(skel, thr):
     # Union
     s += endpoints
     return s
+
+def walk_to_node(skel, sender_p, start_p):
+    # TODO: Cambiare il nome alla funzione
+    """
+    Returns a list of points (path) that are between the point `p` and the first 
+    available node or tip
+
+    Parameteres:
+        sender_p (tuple): The `father` of the starting point
+        start_p (tuple): The starting point, which is the `son` (or neighbor) of `sender_p` 
+
+    Returns:
+        path: A list containing the points walked
+    """
+
+    #global skel
+
+    prev_point = sender_p
+    cur_point = start_p
+    path = [sender_p]
+    res = PointType.NODE
+
+    while True:
+        n = valid_neighbors(cur_point, root_neighbors, skel)
+        n.remove(prev_point)
+
+        path.append(cur_point)
+
+        # The point is a node
+        if len(n) > 1:
+            break
+
+        if is_tip(cur_point, skel):
+            res = PointType.TIP
+            break
+
+        prev_point = cur_point
+        cur_point = n[0]
+
+    return res, Path(path)
+
+def prune3(skel, branch_threshold, work_on_copy=True):
+    """
+    Prunes the branches from the skeleton that are equal or shorter than the threshold.
+
+    Parameters:
+        - skel (numpy.ndarray): Boolean numpy matrix that describes the skeleton
+        - branch_threshold (int): Branch threshold
+        - work_on_copy (bool): Whether or not the prune must be done on the original skeleton
+    """
+    nodes = np.zeros_like(skel)
+    pruned = skel
+    if work_on_copy:
+        pruned = skel.copy()
+
+    """
+    Kernels took from:
+    https://stackoverflow.com/questions/43037692/how-to-find-branch-point-from-binary-skeletonize-image
+    """
+    kers = list()
+    kers.append(np.array([[0, 1, 0], 
+                          [1, 1, 1], 
+                          [0, 0, 0]]))
+
+    kers.append(np.array([[1, 0, 1], 
+                          [0, 1, 0], 
+                          [1, 0, 0]]))
+
+    kers.append(np.array([[1, 0, 1], 
+                          [0, 1, 0], 
+                          [0, 1, 0]]))
+
+    kers.append(np.array([[0, 1, 0], 
+                          [1, 1, 0], 
+                          [0, 0, 1]]))
+
+    kers.append(np.array([[0, 0, 1], 
+                          [1, 1, 1], 
+                          [0, 1, 0]]))
+
+    kers = [np.rot90(kers[i], k=j) for i in range(5) for j in range(4)]
+
+    kers.append(np.array([[0, 1, 0], 
+                          [1, 1, 1], 
+                          [0, 1, 0]]))
+    
+    kers.append(np.array([[1, 0, 1], 
+                          [0, 1, 0], 
+                          [1, 0, 1]]))
+
+    for ker in kers:
+        nodes += cv.morphologyEx(pruned, cv.MORPH_HITMISS, ker)
+    
+    # Grab coordinates of the nodes
+    nodes_idx = np.argwhere(nodes.astype(bool))
+
+    for node in nodes_idx:
+        node = tuple(node)
+        neighbors = valid_neighbors(node, root_neighbors, pruned)
+        for n in neighbors:
+            endpoint_type, path = walk_to_node(pruned, node, n)
+            points = path.points[1:]        # Skips the first point, which is the node
+            if endpoint_type == PointType.TIP and len(points) <= branch_threshold:
+                for point in points:
+                    pruned[point] = False
+
+    return pruned
