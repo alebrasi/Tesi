@@ -146,10 +146,13 @@ def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10, dbg_ctx=
     _, labels, stats, _ =  cv.connectedComponentsWithStatsWithAlgorithm(horizontal_lines, 8, 
                                                                         cv.CV_16U, cv.CCL_DEFAULT)
 
+    show_image(labels, cmap='magma', dbg_ctx=dbg_ctx)
     # Removing thick or short (horizontal) lines
     for label, stat in enumerate(stats):
         w = stat[cv.CC_STAT_WIDTH]
         h = stat[cv.CC_STAT_HEIGHT]
+        if w > 45:
+            continue
         if w < 35 or h > 4:
             labels[labels == label] = 0
 
