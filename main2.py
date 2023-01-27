@@ -208,14 +208,17 @@ rx = w if rx > w else rx
 
 seed_roi = orig_img[:ly, lx:rx, ...]
 hsv = cv.cvtColor(seed_roi, cv.COLOR_BGR2HSV)
-res = cv.inRange(hsv, (15, 80, 100), (35, 255, 255))
+show_image(hsv, cmap='magma', dbg_ctx=dbg_ctx_post)
+
+#res = cv.inRange(hsv, (15, 80, 100), (35, 255, 255))
+res = cv.inRange(hsv, (15, 100, 100), (25, 255, 255))
 show_image([res, seed_roi[..., ::-1]], dbg_ctx=dbg_ctx_post)
 
 ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
-ker2 = cv.getStructuringElement(cv.MORPH_ELLIPSE, (25, 25))
+ker2 = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
 morphed = cv.morphologyEx(res, cv.MORPH_OPEN, ker)
 # TODO: Dilate o close?
-morphed = cv.morphologyEx(morphed, cv.MORPH_CLOSE, ker2)
+morphed = cv.morphologyEx(morphed, cv.MORPH_DILATE, ker2)
 
 _, labels, stats, _ = cv.connectedComponentsWithStats(morphed)
 
@@ -316,33 +319,34 @@ print(seeds_pos)
 
 show_image([skeleton_color, orig_img], dbg_ctx=dbg_ctx_post)
 
-if no_extraction:
-    sys.exit()
+
 
 # -----------Skeleton refinement ------------------------------
 """
 Create a kernel that detects greek cross without the center point
-With the new prune it must not be used
 
             0 # 0             0 # 0
             # 0 #    ---->    # # #
             0 # 0             0 # 0
-
+"""
 ker = np.array([[-1 , 1, -1],
                 [ 1, -1,  1],
                 [-1,  1, -1]])
 
+# If the prune gives some problem, check this
 hollow_center_cross = cv.morphologyEx(skeleton, cv.MORPH_HITMISS, ker)
 skeleton = hollow_center_cross + skeleton
-"""
+#"""
 #skeleton = skeleton.astype(bool)
 # ---------------
 # TODO: nel prune mettere secondo threshold che si attiva solo ad una determinata altezza
 pruned = prune3(skeleton, 6)
 pruned = prune3(pruned, 2)
 
-show_image([skeleton, pruned])
+show_image([skeleton, pruned], dbg_ctx=dbg_ctx_post)
 
+if no_extraction:
+    sys.exit()
 pruned = pruned.astype(bool)
 
 print('pruned')
