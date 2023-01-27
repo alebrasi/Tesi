@@ -31,7 +31,7 @@ image_extension = 'jpg'
 # 88R, 89R SUS
 # Fare test su 498 e 87R
 # 105, 950R
-image_name = '105'
+image_name = '509R'
 
 
 parser = argparse.ArgumentParser()
@@ -64,20 +64,24 @@ print(f'Mask path: {mask_path}')
 #img = cv.imread('/home/alebrasi/Documents/tesi/segmentate_prof/Sessione 1/Sessione 1.1/109.bmp')
 
 img = cv.imread(img_path)
+mask = cv.imread(mask_path, cv.COLOR_BGR2GRAY)
+h, w = img.shape[:2]
 
 seed_line_roi = [[135, 0], [203, 499]]
 
-img, left_pt, right_pt = locate_seed_line(img, seed_line_roi, 5, dbg_ctx=dbg_ctx_seed_line)
+M, left_pt, right_pt = locate_seed_line(img, seed_line_roi, 5, dbg_ctx=dbg_ctx_seed_line)
+
+# Apply rotation matrix to image and mask
+img = cv.warpAffine(img, M, (w, h))
+mask = cv.warpAffine(mask, M, (w, h))
 
 orig_img = img.copy()
 
-h, w = img.shape[:2]
 seed_line = np.zeros((h, w), dtype=np.uint8)
 cv.line(seed_line, left_pt, right_pt, 255, 1)
 show_image(seed_line, dbg_ctx=dbg_ctx_seed_line)
 show_image(img, dbg_ctx=dbg_ctx_seed_line)
 
-mask = cv.imread(mask_path, cv.COLOR_BGR2GRAY)
 show_image(mask, dbg_ctx=dbg_ctx_seed_line)
 
 # ------------------- Mask refinement
@@ -315,23 +319,25 @@ show_image([skeleton_color, orig_img], dbg_ctx=dbg_ctx_post)
 if no_extraction:
     sys.exit()
 
-# -----------Skeleton refinement
+# -----------Skeleton refinement ------------------------------
 """
 Create a kernel that detects greek cross without the center point
+With the new prune it must not be used
 
             0 # 0             0 # 0
             # 0 #    ---->    # # #
             0 # 0             0 # 0
-"""
+
 ker = np.array([[-1 , 1, -1],
                 [ 1, -1,  1],
                 [-1,  1, -1]])
+
 hollow_center_cross = cv.morphologyEx(skeleton, cv.MORPH_HITMISS, ker)
 skeleton = hollow_center_cross + skeleton
+"""
 #skeleton = skeleton.astype(bool)
 # ---------------
 # TODO: nel prune mettere secondo threshold che si attiva solo ad una determinata altezza
-
 pruned = prune3(skeleton, 6)
 pruned = prune3(pruned, 2)
 
