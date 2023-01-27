@@ -283,7 +283,40 @@ def prune3(skel, branch_threshold, work_on_copy=True):
                           [1, 0, 1]]))
 
     for ker in kers:
-        nodes += cv.morphologyEx(pruned, cv.MORPH_HITMISS, ker)
+        """
+        When the hitmiss transformation is applied, the border type 
+        is set to constant with value=0 in order to remove false positive nodes
+        when there are pixels close to the border.
+
+        E.g.
+        Skeleton before finding the nodes:
+
+        BORDER --->  ##########################
+                                   ******     #
+                           *********          #
+                         **         *         #
+                        *            *        #
+
+        Where '*' indicates the pixels of the skeleton
+
+        After finding the nodes with border value = 255 (or True):
+
+        BORDER --->  ##########################
+                                   x*****     #
+                           ********°          #
+                         *°         *         #
+                        *            *        #
+
+        Where:
+            - '°' indicate the correct identified nodes
+            - 'x' indicate the wrong identified node
+        """
+        nodes += cv.morphologyEx(pruned, 
+                                 cv.MORPH_HITMISS, 
+                                 ker, 
+                                 borderType=cv.BORDER_CONSTANT,
+                                 borderValue=0
+                                )
     
     # Grab coordinates of the nodes
     nodes_idx = np.argwhere(nodes.astype(bool))
