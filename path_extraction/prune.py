@@ -216,7 +216,8 @@ def walk_to_node(skel, sender_p, start_p):
 
     while True:
         n = valid_neighbors(cur_point, root_neighbors, skel)
-        n.remove(prev_point)
+        #n.remove(prev_point)
+        if prev_point in n: n.remove(prev_point)
 
         path.append(cur_point)
 
