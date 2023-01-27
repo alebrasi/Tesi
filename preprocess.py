@@ -45,7 +45,9 @@ def clahe_bgr(img, clip, grid_size):
 # Automatic brightness and contrast optimization with optional histogram clipping
 # https://stackoverflow.com/questions/56905592/automatic-contrast-and-brightness-adjustment-of-a-color-photo-of-a-sheet-of-pape
 def automatic_brightness_and_contrast(image, clip_hist_percent=1):
-    gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+    gray = image
+    if len(image.shape) == 3:
+        gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
     
     gray = gray[gray > 0]
 
@@ -78,14 +80,15 @@ def automatic_brightness_and_contrast(image, clip_hist_percent=1):
     alpha = 255 / (maximum_gray - minimum_gray)
     beta = -minimum_gray * alpha
     
-    '''
+    """
     # Calculate new histogram with desired range and show histogram 
-    new_hist = cv2.calcHist([gray],[0],None,[256],[minimum_gray,maximum_gray])
+    new_hist = cv.calcHist([gray],[0],None,[256],[minimum_gray,maximum_gray])
     plt.plot(hist)
     plt.plot(new_hist)
     plt.xlim([0,256])
     plt.show()
-    '''
+    show_image(image)
+    """
 
     auto_result = f(image, alpha=alpha, beta=beta)
 
@@ -94,7 +97,7 @@ def automatic_brightness_and_contrast(image, clip_hist_percent=1):
 
 def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10, dbg_ctx=None):
     """
-    Returns the straighten up image and the extreme points of the seed line
+    Returns the rotation matrix that straighten the image and the extreme points of the seed line
 
     Parameters:
     img: the image
@@ -103,15 +106,18 @@ def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10, dbg_ctx=
     seed_line_offset_px (int): offset to apply to the found line extreme points (left_pt and right_pt)
 
     Returns:
-    img: the straighten up image
+    M: the rotation matrix
     left_pt: a tuple containing the left point of the seed line in (x, y) format
     right_pt: a tuple containing the right point of the seed line in (x, y) format
     """
 
     orig_img = img.copy()
     offset_x = offset_y = 0
-    
     img = ~cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+
+    # TODO: Provare diversi tileGridSize
+    clahe = cv.createCLAHE(clipLimit=1.0, tileGridSize=(60, 60))
+    img = clahe.apply(img)
     if rough_location != None:
         top_left_pt, bottom_right_pt = rough_location[0], rough_location[1]
         tl_y, tl_x = top_left_pt
@@ -192,8 +198,8 @@ def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10, dbg_ctx=
     # Finding the rotation matrix and apply it in order to straighten up the image
     h, w = orig_img.shape[:2]
     M = cv.getRotationMatrix2D((h//2, w//2), alpha, 1.0)
-    img = cv.warpAffine(orig_img, M, (h, w))
-    img1 = img.copy()
+    #img = cv.warpAffine(orig_img, M, (h, w))
+    #img1 = img.copy()
 
     #show_image(img1)
 
@@ -231,4 +237,4 @@ def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10, dbg_ctx=
     show_image(res)
     """
 
-    return img, left_pt, right_pt 
+    return M, left_pt, right_pt 
