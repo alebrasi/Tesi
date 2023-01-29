@@ -133,10 +133,16 @@ cc_rem[:left_pt[1], :] = cv.morphologyEx(
 # TODO: Sostituibile con box filter?
 blurred = cv.GaussianBlur(cc_rem, (3, 3), 5)
 
-# Thresholding the blurred image in order to obtain a smoother segmentation
-cc_rem = cv.adaptiveThreshold(
-    blurred, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 11, 0)
+# Double hresholding the blurred image in order to obtain a smoother segmentation
+# Otsu thresholding above the seed line
+_, cc_rem[:left_pt[1], :] = cv.threshold(blurred[:left_pt[1], :], 0, 255, cv.THRESH_BINARY+cv.THRESH_OTSU)
 
+# Adaptive thresholding below the seed line
+cc_rem[left_pt[1]-5:, :] = cv.adaptiveThreshold(
+    blurred[left_pt[1]-5:, :], 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 11, 0)
+
+
+# TODO: Rimuovibile?
 cc_rem = remove_cc(cc_rem, 50)
 
 # ------------------- Refined mask postprocess
@@ -263,6 +269,7 @@ skeleton_color = cv.cvtColor(skeleton, cv.COLOR_GRAY2BGR)
 seeds_pos = []
 seeds_bb = []
 
+# TODO: Rimuovere
 for seed_bb in candidate_seeds_box:
     x, y, w, h = seed_bb
 
@@ -364,13 +371,3 @@ for bb in seeds_bb:
 
 print(seeds_pos)
 extraction(seeds_pos, pruned, dist, orig_img)
-
-
-
-# Per il prune dello scheletro guardare nella cartella download 'Skeleton2Graph'
-# https://ehu.eus/ccwintco/index.php?title=Skeletonization,_skeleton_pruning_and_simple_skeleton_graph_construction_example_in_Matlab
-# http://www.ehu.es/ccwintco/uploads/a/a0/Skeleton2Graph.zip
-
-# Codice originale
-# https://cis.temple.edu/~latecki/Programs/BaiSkeletonPruningDCE.zip
-
