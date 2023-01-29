@@ -134,21 +134,43 @@ def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10, dbg_ctx=
     #vertical_ker = cv.getStructuringElement(cv.MORPH_RECT, (1, 50))
     #vertical_lines = cv.morphologyEx(img, cv.MORPH_OPEN, vertical_ker)
 
-    """
-    Morphological closing for joining nearby (on the y axis) horizontal lines
-    This nearby lines are found in correspondence of the edge of the glass slide
-    This is done in order to detect them and later removed
-    """
-    #ker = cv.getStructuringElement(cv.MORPH_RECT, (5, 5))
-    #horizontal_lines = cv.morphologyEx(horizontal_lines, cv.MORPH_CLOSE, ker)
+    show_image(horizontal_lines, dbg_ctx=dbg_ctx)
     
-    """
-    horizontal_ker = cv.getStructuringElement(cv.MORPH_RECT, (10, 4))
-    vertical_ker = cv.getStructuringElement(cv.MORPH_RECT, (4, 20))
-    horizontal_lines = cv.morphologyEx(horizontal_lines, cv.MORPH_CLOSE, horizontal_ker)
-    vertical_lines = cv.morphologyEx(vertical_lines, cv.MORPH_CLOSE, vertical_ker)
-    """
+    lines = cv.HoughLinesWithAccumulator(horizontal_lines, 1, np.pi / 180, 50, None, 0, 0)
+    # obtaining the line with the maximum votes, even if the Hough transform should return 
+    # the results in descending order by accumulator value
+    lines = lines.reshape(-1, 3)
+    line = max(lines, key=lambda l: l[2])
 
+    rho, theta, _ = line
+
+    if dbg_ctx != None and dbg_ctx.is_active:
+        cdst = cv.cvtColor(horizontal_lines, cv.COLOR_GRAY2BGR)
+        a = math.cos(theta)
+        b = math.sin(theta)
+        x0 = a * rho
+        y0 = b * rho
+        pt1 = (int(x0 + 1000*(-b)), int(y0 + 1000*(a)))
+        pt2 = (int(x0 - 1000*(-b)), int(y0 - 1000*(a)))
+        cv.line(cdst, pt1, pt2, (0, 255, 0), 1, cv.LINE_AA)
+        show_image(cdst)
+    
+    h, w = horizontal_lines.shape[:2]
+
+    rot_angle = math.degrees(theta)-90.0
+    print(rot_angle)
+
+    M = cv.getRotationMatrix2D((h//2, w//2), rot_angle, 1.0)
+
+    roi_offset_y, _ = rough_location[0]
+
+    y = int(rho*math.cos(math.radians(rot_angle))) + roi_offset_y + seed_line_offset_px 
+    pt1 = (0, y)
+    pt2 = (w-1, y)
+    
+    return M, pt1, pt2
+
+    """ 
     _, labels, stats, _ =  cv.connectedComponentsWithStatsWithAlgorithm(horizontal_lines, 8, 
                                                                         cv.CV_16U, cv.CCL_DEFAULT)
 
@@ -169,7 +191,7 @@ def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10, dbg_ctx=
     #show_image(cv.bitwise_and(orig_img, orig_img, mask=labels))
 
     horizontal_lines = labels
-
+    
     h, w = horizontal_lines.shape[:2]
 
     contours, hierarchy = cv.findContours(horizontal_lines, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
@@ -195,7 +217,7 @@ def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10, dbg_ctx=
     cv.line(img, (left_x, left_y), (right_x, right_y),(0, 255, 0), 1)
     show_image(img, dbg_ctx=dbg_ctx)
 
-    # Finding the rotation matrix and apply it in order to straighten up the image
+    # Finding the rotation matrix
     h, w = orig_img.shape[:2]
     M = cv.getRotationMatrix2D((h//2, w//2), alpha, 1.0)
     #img = cv.warpAffine(orig_img, M, (h, w))
@@ -215,26 +237,5 @@ def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10, dbg_ctx=
     left_pt = (left_pt[0], new_y)
     right_pt = (right_pt[0], new_y)
 
+    return M, left_pt, right_pt
     """
-    cv.line(img1, left_pt, (right_pt[0], new_y), (255, 0, 0), 1)
-
-    seed_line = np.zeros_like(img)
-    cv.line(seed_line, left_pt, right_pt, 255, 1)
-    show_image(img1)
-
-    """
-    """
-    ker = np.array([[-1, -1, 0], 
-                    [1, 1, -1],
-                    [-1, -1, 0]])
-
-    ker2 = np.flip(ker)
-
-    res = cv.morphologyEx(horizontal_lines, cv.MORPH_HITMISS, ker)
-    res2 = cv.morphologyEx(horizontal_lines, cv.MORPH_HITMISS, ker2)
-
-    res = res + res2
-    show_image(res)
-    """
-
-    return M, left_pt, right_pt 
