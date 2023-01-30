@@ -185,6 +185,7 @@ class Root:
         G = type(self).G
         #cur_angle = G.edges[self._cur_edge]['weight']
         cur_angle = G.edges[edge]['weight']
+        ema_alpha = G.edges[edge]['length'] / G.graph['max_edge_len']
 
         if self._prev_angle_ema == None:
             self._prev_angle_ema = cur_angle
@@ -194,7 +195,9 @@ class Root:
         cur_angle_ema = (self._ema_alpha * cur_angle) +                 \
                         (1-self._ema_alpha) * self._prev_angle_ema
         """
-        cur_angle_ema = self._calc_ema(self._prev_angle_ema, cur_angle, self._ema_alpha)
+        #cur_angle_ema = self._calc_ema(self._prev_angle_ema, cur_angle, self._ema_alpha)
+
+        cur_angle_ema = self._calc_ema(self._prev_angle_ema, cur_angle, ema_alpha)
         self._prev_angle_ema = cur_angle_ema
         
         #return cur_angle_ema
@@ -205,7 +208,7 @@ class Root:
             return float('inf')
 
         edge = (node, neighbor)
-        return abs(self._prev_angle_ema - G.edges[edge]['weight'])
+        return abs(int(self._prev_angle_ema) - G.edges[edge]['weight'])
 
     def _node_neighbors(self, edge):
         """
@@ -242,18 +245,23 @@ class Root:
         #if len(neighbors) == 0:
             return False
 
-        res = [ (n, self._compare_neighbor(cur_node, n)) for n in neighbors ]
+        res = [ (n, G.edges[(cur_node, n)]['walked'], self._compare_neighbor(cur_node, n)) for n in neighbors ]
 
         # There's only one neighbor node: it can only go to that
         if len(neighbors) == 1:
-            node, _ = res[0]
+            node, _, _ = res[0]
             self._add_edge((cur_node, node))
 
             return True
 
         # There are more neighbors
+        min_edge, walked, angle = min(res, key=lambda n: n[2])
+        tmp = list(filter(lambda e: e[1] == False, res))
+        if len(tmp) > 0:
+            min_edge1, _, angle1 = min(tmp, key=lambda e: e[2])
+            if (abs(angle1 - angle) < 45) and walked:
+                min_edge = min_edge1
         
-        min_edge = min(res, key=lambda n: n[1])[0]
         self._add_edge((cur_node, min_edge))
 
         return True
