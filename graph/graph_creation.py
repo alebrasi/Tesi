@@ -11,6 +11,8 @@ import math
 import networkx as nx
 import matplotlib.pyplot as plt
 
+import cv2 as cv
+
 class PointType(Enum):
     TIP = 0,
     NODE = 1,
@@ -42,7 +44,7 @@ def walk_to_node(sender_p, start_p):
 
     while True:
         n = valid_neighbors(cur_point, root_neighbors, skel)
-        n.remove(prev_point)
+        if prev_point in n: n.remove(prev_point)
 
         path.append(cur_point)
 
@@ -96,7 +98,7 @@ def add_nodes_and_edges(G, source_node, walked_path, max_res_err, min_points):
                     prev_path_endpoint, 
                     weight=path.vector.angle, 
                     path_points=path.points[::-1],     # Just reverse the order of the points
-                    lenght=len(path.points),
+                    length=len(path.points),
                     vector=path.vector)
 
         prev_path_endpoint = path.endpoint
@@ -132,7 +134,7 @@ def find_forking_node(seed, skel):
 
     return lowest_point
 
-def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_lstsq=4):
+def create_graph2(seeds, skeleton, distances, max_residual_err=1.0, min_points_lstsq=4):
     """
     Creates a networkx directed graph of the plant.
     The plant is approximated with least squared lines.
@@ -215,6 +217,123 @@ def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_ls
     for node in G.nodes:
         if G.nodes[node]['node_type'] == PointType.NODE and len(list(G.neighbors(node))) == 1:
             G.nodes[node]['node_type'] = PointType.TIP
+
+    all_edges_len = [ G.edges[e]['length'] for e in G.edges ]
+    max_edge_len = max(all_edges_len)
+    G.graph['max_edge_len'] = (max_edge_len/0.8) - max_edge_len
+
+    H = nx.convert_node_labels_to_integers(G, label_attribute='pos')
+    
+    return H
+
+def get_nodes(skel):
+    kers = list()
+    skel = skel.copy().astype(np.uint8)
+    nodes = np.zeros_like(skel)
+    kers.append(np.array([[0, 1, 0], 
+                          [1, 1, 1], 
+                          [0, 0, 0]]))
+
+    kers.append(np.array([[1, 0, 1], 
+                          [0, 1, 0], 
+                          [1, 0, 0]]))
+
+    kers.append(np.array([[1, 0, 1], 
+                          [0, 1, 0], 
+                          [0, 1, 0]]))
+
+    kers.append(np.array([[0, 1, 0], 
+                          [1, 1, 0], 
+                          [0, 0, 1]]))
+
+    kers.append(np.array([[0, 0, 1], 
+                          [1, 1, 1], 
+                          [0, 1, 0]]))
+
+    kers = [np.rot90(kers[i], k=j) for i in range(5) for j in range(4)]
+
+    kers.append(np.array([[0, 1, 0], 
+                          [1, 1, 1], 
+                          [0, 1, 0]]))
+    
+    kers.append(np.array([[1, 0, 1], 
+                          [0, 1, 0], 
+                          [1, 0, 1]]))
+
+    for ker in kers:
+        nodes += cv.morphologyEx(skel, 
+                                 cv.MORPH_HITMISS, 
+                                 ker, 
+                                 borderType=cv.BORDER_CONSTANT,
+                                 borderValue=0
+                                )
+    
+    # Grab coordinates of the nodes
+    nodes_idx = np.argwhere(nodes.astype(bool))
+    return nodes_idx
+
+def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_lstsq=4):
+    """
+    Creates a networkx directed graph of the plant.
+    The plant is approximated with least squared lines.
+
+    Nodes attributes:
+        - pos (tuple) : coordinates of the node
+        - node_type (PointType) : type of the node
+    
+    Edges attributes:
+        - weight (int) : angle between the two connected nodes
+        - lenght (int) : number of points between the two nodes
+        - path_points (list) : points, in (y, x) format, between the two nodes
+        - vector (Vector) : vector describing the direction of the ege
+
+    Parameters:
+        seeds (list) : positions of the seeds, in (y, x) format
+        skeleton (numpy.ndarray) : boolean matrix that is the skeletonization of the segmented image
+        max_residual_err (float) : maximum residual error for obtaining a least squared path
+        min_points_lstsq (int) : minimum number of points that must contains a least squared path
+    """
+
+    global skel
+    queue = Queue()
+    G = nx.DiGraph()
+    visited_neighbors = set()
+
+    skel = skeleton
+
+    nodes_idx = get_nodes(skel)
+
+    for node in nodes_idx:
+        node = tuple(node)
+        neighbors = valid_neighbors(node, root_neighbors, skel)
+        neighbors = [ n for n in neighbors if n not in visited_neighbors ]
+
+        for n in neighbors:
+            endpoint_type, path = walk_to_node(node, n)
+            points = path.points[1:]        # Skips the first point, which is the node
+            visited_neighbors.add(path.penultimate_point)
+            add_nodes_and_edges(G, node, path, max_residual_err, min_points_lstsq)
+            if endpoint_type == PointType.TIP:
+                G.nodes[path.endpoint]['node_type'] = PointType.TIP
+
+    for seed in seeds:
+
+        # Walks to the first node that is below the given seed point 
+        # (we don't know if the point is actually the seed node)
+        # which will be the seed node
+        cur_node = find_forking_node(seed, skel)
+
+        # If the seed node is already in the graph, it means that the previous
+        # exploration (started from the previous seed) already visited all the plant
+        # that grown up from the current seed
+        if cur_node in G:
+            G.nodes[cur_node]['node_type'] = PointType.SOURCE
+            continue
+
+
+    all_edges_len = [ G.edges[e]['length'] for e in G.edges ]
+    max_edge_len = max(all_edges_len)
+    G.graph['max_edge_len'] = (max_edge_len/0.8) - max_edge_len
 
     H = nx.convert_node_labels_to_integers(G, label_attribute='pos')
     
