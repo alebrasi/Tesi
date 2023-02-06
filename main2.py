@@ -1,5 +1,5 @@
 import cv2 as cv
-from skimage.morphology import skeletonize, medial_axis
+from skimage.morphology import skeletonize, medial_axis, thin
 from skimage.graph import pixel_graph
 import numpy as np
 import matplotlib
@@ -23,15 +23,20 @@ def find_nearest(node, nodes):
 
 matplotlib.use('TKAgg')
 
-image_path = '/home/alebrasi/Documents/tesi/Dataset/sessioni'
-mask_path = '/home/alebrasi/Documents/tesi/segmentate_prof/'
-mask_extension = 'bmp'
+#image_path = '/home/alebrasi/Documents/tesi/Dataset/sessioni'
+#mask_path = '/home/alebrasi/Documents/tesi/segmentate_prof/'
+
+image_path = '/home/alebrasi/Documents/tesi/Dataset/sessioni_crop/resize'
+mask_path = '/home/alebrasi/Documents/tesi/Dataset/sessioni_crop/segmentate_1024'
+
+mask_extension = 'png'
 image_extension = 'jpg'
+invert_mask = True
 
 # 88R, 89R SUS
 # Fare test su 498 e 87R
 # 105, 950R
-image_name = '509R'
+image_name = '109'
 
 
 parser = argparse.ArgumentParser()
@@ -65,9 +70,14 @@ print(f'Mask path: {mask_path}')
 
 img = cv.imread(img_path)
 mask = cv.imread(mask_path, cv.COLOR_BGR2GRAY)
+
+if invert_mask:
+    mask = cv.bitwise_not(mask)
+    _, mask = cv.threshold(mask, 1, 255, cv.THRESH_BINARY)
+
 h, w = img.shape[:2]
 
-seed_line_roi = [[135, 0], [203, 499]]
+seed_line_roi = [[128, 0], [238, w-1]]
 
 M, left_pt, right_pt = locate_seed_line(img, seed_line_roi, 5, dbg_ctx=dbg_ctx_seed_line)
 
@@ -336,9 +346,9 @@ Create a kernel that detects greek cross without the center point
             # 0 #    ---->    # # #
             0 # 0             0 # 0
 """
-ker = np.array([[-1 , 1, -1],
+ker = np.array([[0 , 1, 0],
                 [ 1, -1,  1],
-                [-1,  1, -1]])
+                [0,  1, 0]])
 
 # If the prune gives some problem, check this
 hollow_center_cross = cv.morphologyEx(skeleton, cv.MORPH_HITMISS, ker)
@@ -349,9 +359,25 @@ skeleton = hollow_center_cross + skeleton
 # TODO: nel prune mettere secondo threshold che si attiva solo ad una determinata altezza
 pruned = prune3(skeleton, 6)
 pruned = prune3(pruned, 2)
+thinned = thin(pruned.astype(bool), max_num_iter=15).astype(np.uint8)
 
-show_image([skeleton, pruned], dbg_ctx=dbg_ctx_post)
+kers = []
+kers.append(np.array([[ 0, -1,  0],
+                      [ 1,  1,  1],
+                      [-1,  1, -1]]))
 
+kers.append(np.array([[-1, 1, -1],
+                      [ 1, 1, 1],
+                      [ 0, 1, 0]]))
+
+#kers = [ np.rot90(ker, k=i) for i in range(2)]
+asd = np.zeros_like(thinned)
+for ker in kers:
+    asd += cv.morphologyEx(thinned, cv.MORPH_HITMISS, ker, borderType=cv.BORDER_CONSTANT, borderValue=0)
+
+show_image([skeleton, pruned, thinned-asd, asd], dbg_ctx=dbg_ctx_post)
+pruned = thinned - asd
+pruned = skeletonize(pruned.astype(bool))
 if no_extraction:
     sys.exit()
 pruned = pruned.astype(bool)
