@@ -77,7 +77,7 @@ if invert_mask:
 
 h, w = img.shape[:2]
 
-seed_line_roi = [[128, 0], [238, w-1]]
+seed_line_roi = [[148, 0], [300, w-1]]
 
 M, left_pt, right_pt = locate_seed_line(img, seed_line_roi, 5, dbg_ctx=dbg_ctx_seed_line)
 
@@ -90,7 +90,7 @@ orig_img = img.copy()
 seed_line = np.zeros((h, w), dtype=np.uint8)
 cv.line(seed_line, left_pt, right_pt, 255, 1)
 show_image(seed_line, dbg_ctx=dbg_ctx_seed_line)
-show_image(img, dbg_ctx=dbg_ctx_seed_line)
+show_image(img[..., ::-1], dbg_ctx=dbg_ctx_seed_line)
 
 show_image(mask, dbg_ctx=dbg_ctx_seed_line)
 
