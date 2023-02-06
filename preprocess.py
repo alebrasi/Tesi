@@ -114,10 +114,12 @@ def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10, dbg_ctx=
     orig_img = img.copy()
     offset_x = offset_y = 0
     img = ~cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+    show_image(img, dbg_ctx=dbg_ctx)
 
     # TODO: Provare diversi tileGridSize
-    clahe = cv.createCLAHE(clipLimit=1.0, tileGridSize=(60, 60))
+    clahe = cv.createCLAHE(clipLimit=2.0, tileGridSize=(60, 60))
     img = clahe.apply(img)
+    show_image(img, dbg_ctx=dbg_ctx)
     if rough_location != None:
         top_left_pt, bottom_right_pt = rough_location[0], rough_location[1]
         tl_y, tl_x = top_left_pt
@@ -125,11 +127,12 @@ def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10, dbg_ctx=
         img = img[tl_y:br_y, tl_x:br_x]
         offset_x, offset_y = tl_x, tl_y
     show_image(img, dbg_ctx=dbg_ctx)
-    img = cv.GaussianBlur(img, (3, 3), 0)
+    img = cv.GaussianBlur(img, (5, 5), 0)
     thresholded_img = cv.adaptiveThreshold(img, 255, cv.ADAPTIVE_THRESH_MEAN_C, 
-                                            cv.THRESH_BINARY, 5, -2)
-    # Find horizontal lines with width >= 10px and height = 1px
-    horizontal_ker = cv.getStructuringElement(cv.MORPH_RECT, (10, 1))
+                                            cv.THRESH_BINARY, 13, -2)
+    show_image(thresholded_img, dbg_ctx=dbg_ctx)
+    # Find horizontal lines with width >= 20px and height = 1px
+    horizontal_ker = cv.getStructuringElement(cv.MORPH_RECT, (20, 1))
     horizontal_lines = cv.morphologyEx(thresholded_img, cv.MORPH_OPEN, horizontal_ker)
     #vertical_ker = cv.getStructuringElement(cv.MORPH_RECT, (1, 50))
     #vertical_lines = cv.morphologyEx(img, cv.MORPH_OPEN, vertical_ker)
@@ -150,9 +153,9 @@ def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10, dbg_ctx=
         b = math.sin(theta)
         x0 = a * rho
         y0 = b * rho
-        pt1 = (int(x0 + 1000*(-b)), int(y0 + 1000*(a)))
-        pt2 = (int(x0 - 1000*(-b)), int(y0 - 1000*(a)))
-        cv.line(cdst, pt1, pt2, (0, 255, 0), 1, cv.LINE_AA)
+        pt1 = (int(x0 + 2000*(-b)), int(y0 + 2000*(a)))
+        pt2 = (int(x0 - 2000*(-b)), int(y0 - 2000*(a)))
+        cv.line(cdst, pt1, pt2, (0, 255, 0), 2, cv.LINE_AA)
         show_image(cdst)
     
     h, w = horizontal_lines.shape[:2]
@@ -164,7 +167,9 @@ def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10, dbg_ctx=
 
     roi_offset_y, _ = rough_location[0]
 
-    y = int(rho*math.cos(math.radians(rot_angle))) + roi_offset_y + seed_line_offset_px 
+    #y = int(rho*math.cos(math.radians(rot_angle))) + roi_offset_y + seed_line_offset_px 
+    y = int(rho/math.sin(theta)) + roi_offset_y + seed_line_offset_px 
+    
     pt1 = (0, y)
     pt2 = (w-1, y)
     
