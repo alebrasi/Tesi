@@ -115,16 +115,39 @@ show_image((segmented, "segm"), dbg_ctx=dbg_ctx_post)
 
 region_below = segmented[left_pt[1]:, :]
 region_above = segmented[:left_pt[1], :]
+mask_above = mask[:left_pt[1], :]
 
-arr = locate_seeds(region_above.copy(), dbg_ctx_locate_seeds)
+top_left_pt, bottom_right_pt = seed_line_roi[0], seed_line_roi[1]
+br_y, br_x = bottom_right_pt
+xd = segmented[:br_y, :br_x]
 
-#h, w = segmented.shape[:2]
-#
-#segmented = np.zeros((h, w))
-#
-#segmented[left_pt[1]:, :] = refine_region_below(region_below)
-#segmented[:left_pt[1], :] = refine_region_above(region_above)
-##segmented[:left_pt[1], :] = mask[:left_pt[1], :]
-#
-#show_image(segmented)
-##show_image(f_img, dbg_ctx=dbg_ctx_post)
+seeds_bb = locate_seeds(xd.copy(), dbg_ctx_locate_seeds)
+
+h, w = segmented.shape[:2]
+
+segmented = np.zeros((h, w), dtype=np.uint8)
+
+segmented[left_pt[1]-1:, :] = refine_region_below(region_below, dbg_ctx=dbg_ctx_region_below)
+segmented[:left_pt[1], :] = refine_region_above(mask_above, dgb_ctx_region_above)
+
+
+ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (11, 11))
+for bb in seeds_bb:
+    x, y, w, h = bb
+    tmp = segmented[y:y+h, x:x+w]
+    segmented[y:y+h, x:x+w] = cv.morphologyEx(tmp, cv.MORPH_CLOSE, ker)
+
+asd = cv.medianBlur(segmented, 5)       # Edge smoothing
+
+#ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (3,3))
+#asd = cv.morphologyEx(asd, cv.MORPH_ERODE, ker)
+
+# Filling small gaps
+cnts, _ = cv.findContours(asd, cv.RETR_CCOMP, cv.CHAIN_APPROX_SIMPLE)
+for i, cnt in enumerate(cnts):
+    if cv.contourArea(cnt) < 30:
+        cv.drawContours(asd, cnts, i, 255, -1)
+
+show_image([segmented, asd])
+show_image(cv.bitwise_and(orig_img, orig_img, mask=asd)[..., ::-1])
+#show_image(f_img, dbg_ctx=dbg_ctx_post)
