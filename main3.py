@@ -111,54 +111,83 @@ show_image(img[..., ::-1], dbg_ctx=dbg_ctx_seed_line)
 
 show_image(mask, dbg_ctx=dbg_ctx_seed_line)
 
-# ------------------- Mask refinement
+# ------------------- Mask preparation ------------------------------
 
 # Morphological closing for filling small gaps in the mask
 ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (15, 15))
 mask = cv.morphologyEx(mask, cv.MORPH_CLOSE, ker)
 
-show_image(mask, dbg_ctx=dbg_ctx_post)
+show_image((mask, 'maschera'), dbg_ctx=dbg_ctx_post)
 
 segmented = cv.bitwise_and(img, img, mask=mask)
 
-show_image((segmented, "segm"), dbg_ctx=dbg_ctx_post)
+show_image((segmented, 'segmentata'), dbg_ctx=dbg_ctx_post)
 
 region_below = segmented[left_pt[1]:, :]
 region_above = segmented[:left_pt[1], :]
 mask_above = mask[:left_pt[1], :]
 
+# ------------ Seeds localization ----------------------------------
 top_left_pt, bottom_right_pt = seed_line_roi[0], seed_line_roi[1]
 br_y, br_x = bottom_right_pt
-xd = segmented[:br_y, :br_x]
+seeds_roi = segmented[:br_y, :br_x]
 
-seeds_bb = locate_seeds(xd.copy(), dbg_ctx_locate_seeds)
+seeds_bb = locate_seeds(seeds_roi.copy(), dbg_ctx_locate_seeds)
+# -----------------------------------------------------------------
 
+# -------------- Mask refinement ------------------
 h, w = segmented.shape[:2]
+refined_mask = np.zeros((h, w), dtype=np.uint8)
 
-segmented = np.zeros((h, w), dtype=np.uint8)
+refined_mask[left_pt[1]:, :] = refine_region_below(region_below, dbg_ctx=dbg_ctx_region_below)
+refined_mask[:left_pt[1], :] = refine_region_above(mask_above, dgb_ctx_region_above)
 
-tmp = refine_region_below(region_below, dbg_ctx=dbg_ctx_region_below)
-segmented[left_pt[1]:, :] = tmp
-segmented[:left_pt[1], :] = refine_region_above(mask_above, dgb_ctx_region_above)
-
-
+# Morphological closing inside seeds bounding box
 ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (11, 11))
 for bb in seeds_bb:
     x, y, w, h = bb
-    tmp = segmented[y:y+h, x:x+w]
-    segmented[y:y+h, x:x+w] = cv.morphologyEx(tmp, cv.MORPH_CLOSE, ker)
+    tmp = refined_mask[y:y+h, x:x+w]
+    refined_mask[y:y+h, x:x+w] = cv.morphologyEx(tmp, cv.MORPH_CLOSE, ker)
 
-asd = cv.medianBlur(segmented, 5)       # Edge smoothing
+smoothed_mask = cv.medianBlur(refined_mask, 5)       # Edge smoothing
 
 #ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (3,3))
 #asd = cv.morphologyEx(asd, cv.MORPH_ERODE, ker)
 
-# Filling small gaps
-cnts, _ = cv.findContours(asd, cv.RETR_CCOMP, cv.CHAIN_APPROX_SIMPLE)
+# Filling gaps with area < 30 px
+cnts, _ = cv.findContours(smoothed_mask, cv.RETR_CCOMP, cv.CHAIN_APPROX_SIMPLE)
 for i, cnt in enumerate(cnts):
     if cv.contourArea(cnt) < 30:
-        cv.drawContours(asd, cnts, i, 255, -1)
+        cv.drawContours(smoothed_mask, cnts, i, 255, -1)
 
-show_image([segmented, asd])
-show_image(cv.bitwise_and(orig_img, orig_img, mask=asd)[..., ::-1])
-#show_image(f_img, dbg_ctx=dbg_ctx_post)
+show_image([(refined_mask, 'maschera rifinita'), (smoothed_mask, 'bordi smussati')])
+show_image((cv.bitwise_and(orig_img, orig_img, mask=smoothed_mask)[..., ::-1], 'risultato segmentazione'))
+
+refined_mask = smoothed_mask
+# -------------------------------------------------------------------------------
+
+# ----------------- Skeletonization and prune -----------------------------------
+
+skeleton, dist = medial_axis(refined_mask.astype(bool), return_distance=True)
+pruned_skeleton = prune3(skeleton.astype(np.uint8), 6)
+
+show_image([(skeleton, 'scheletro'), (pruned_skeleton, 'scheletro con branch < 6px potati')])
+
+pruned_skeleton = pruned_skeleton.astype(bool)
+# -------------------------------------------------------------------------------
+
+seeds_pos = []
+for bb in seeds_bb:
+    x, y, w, h = bb
+
+    centroid = (y+h//2, x+w//2)
+    arr = pruned_skeleton[y:y+h, x:x+w]
+    nodes = np.argwhere(arr) + [y, x]
+    if len(nodes) > 0:
+        nearest = find_nearest(centroid, nodes)
+        a, b = nearest
+        seeds_pos.append((a, b))
+
+print(seeds_pos)
+show_image(pruned_skeleton)
+extraction(seeds_pos, pruned_skeleton, dist, orig_img)
