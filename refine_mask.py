@@ -8,11 +8,12 @@ def refine_region_below(img, dbg_ctx):
     f_img, alpha, beta = automatic_brightness_and_contrast(img, 37)
     show_image((f_img, 'automatic brightness and contrast'), dbg_ctx=dbg_ctx)
 
+    # Noise removes
     blur = cv.pyrDown(f_img)
     blur = cv.pyrUp(blur)
     f_img = blur
-    show_image((f_img, 'gamma corr'), dbg_ctx=dbg_ctx)
 
+    # CLAHE equalization
     lab = cv.cvtColor(f_img, cv.COLOR_BGR2LAB)
     l,a,b = cv.split(lab)
     clahe = cv.createCLAHE(clipLimit=40.0, tileGridSize=(20, 20))
@@ -25,10 +26,10 @@ def refine_region_below(img, dbg_ctx):
 
     thr = cv.adaptiveThreshold(
         l, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 21, 0)
-
+    
     #thr = cv.pyrUp(thr)
-    thr = cv.adaptiveThreshold(
-        thr, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 15, 0)
+    #thr = cv.adaptiveThreshold(
+    #    thr, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 15, 0)
 
     show_image((thr, 'thresholded'), dbg_ctx=dbg_ctx)
 
