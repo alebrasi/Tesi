@@ -26,6 +26,7 @@ def boolean_matrix_to_rgb(m):
 
 def extraction(seeds, skel, distance, orig_img):
     skel2 = boolean_matrix_to_rgb(skel)
+    h, w = skel.shape[:2]
 
     G = create_graph(seeds, skel, distance)
     color_map = { 
@@ -48,7 +49,7 @@ def extraction(seeds, skel, distance, orig_img):
     for i, plant in enumerate(plants, 0):
         print(f'Plant: {i}')
         print(f'Num roots: {len(plant.roots)}')
-        mask = np.zeros((500, 500, 3))
+        mask = np.zeros((h, w, 3))
         for root in plant.roots:
             print(root.edges)
             print(root._edges)
