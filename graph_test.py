@@ -84,6 +84,7 @@ def extraction(seeds, skel, distance, orig_img):
     cv.destroyAllWindows()
 
     draw_graph(G, with_labels=True, node_color=node_color, node_size=20, invert_xaxis=False)
+    return plants
 
 if __name__ == '__main__':
     dataset_path = '/home/alebrasi/Documents/tesi/Dataset'
