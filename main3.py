@@ -14,6 +14,10 @@ from path_extraction.prune import prune_skeleton_branches, prune3
 from graph_test import extraction
 from refine_mask import refine_region_above, refine_region_below, locate_seeds
 
+from graph.plant import Plant, Root
+from rsml.rsmlwriter import RSMLWriter
+from rsml.plants import Plant as RootNavPlant, Root as RootNavRoot
+
 def find_nearest(node, nodes):
     node = np.array(node)
     nodes = np.array(nodes)
@@ -190,4 +194,25 @@ for bb in seeds_bb:
 
 print(seeds_pos)
 show_image(pruned_skeleton)
-extraction(seeds_pos, pruned_skeleton, dist, orig_img)
+
+plants = extraction(seeds_pos, pruned_skeleton, dist, orig_img)
+
+spline_parameters = {
+                        'tension': 0.5,
+                        'spacing': 20 
+                    }
+
+# Create Plant structure
+rootnav_plants = [ RootNavPlant(idx, 'orzo') for idx in range(len(plants)) ]
+
+for i, plant in enumerate(plants):
+    for root in plant.roots:
+        points = root.points
+        points = [ (x, y) for y, x in root.points ]
+        tmp_root = RootNavRoot(points, spline_tension=spline_parameters['tension'], spline_knot_spacing=spline_parameters['spacing'])
+        rootnav_plants[i].roots.append(tmp_root)
+
+output_dir = '/home/alebrasi/Videos/rsml_tests'
+
+# Output to RSML
+RSMLWriter.save(image_name, output_dir, rootnav_plants)
