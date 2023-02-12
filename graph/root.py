@@ -151,6 +151,20 @@ class Root:
         #return set(flat_map(lambda e: e[1], self._edges))
 
     @property
+    def nodes_coords(self):
+        G = type(self).G
+        tmp = []
+        for e in self._ordered_edges:
+            pos = G.nodes[e[0]]['pos']
+            tmp.append(pos)
+
+        last_edge = self._ordered_edges[-1]
+        pos = G.nodes[last_edge[1]]['pos']
+        tmp.append(pos)
+        
+        return tmp
+
+    @property
     def edges(self):
         """
         Returns all the edges in the root
