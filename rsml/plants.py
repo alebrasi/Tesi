@@ -27,8 +27,10 @@ class Plant():
                 yield c
 
 class Root():
-    def __init__(self, points, roots = None, spline_tension = 0.5, spline_knot_spacing = 50):
+    def __init__(self, points, diameters, stem, roots = None, spline_tension = 0.5, spline_knot_spacing = 50):
         self.roots = roots if roots is not None else []
         self.start = points[0]
         self.end = points[-1]
+        self.diameters = diameters
+        self.stem = stem
         self.spline = Spline(points, spline_tension, spline_knot_spacing)
