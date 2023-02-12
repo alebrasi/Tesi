@@ -41,6 +41,11 @@ class RSMLWriter():
                 for pt in poly:
                     point = ET.SubElement(polyline, 'point', x=str(pt[0]), y=str(pt[1]))
 
+                functions = ET.SubElement(priroot, 'functions')
+                function = ET.SubElement(functions, 'function', domain='polyline', name='diameter')
+                for sample in pri.diameters:
+                    s = ET.SubElement(function, 'sample', value=str(sample))
+
                 """
                 for lateral_id, lat in enumerate(pri.roots):
                     latroot = ET.SubElement(priroot, 'root', id=str(primary_id+1)+"."+str(lateral_id+1), label="lateral")
