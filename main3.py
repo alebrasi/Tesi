@@ -81,10 +81,11 @@ print(f'Mask path: {mask_path}')
 
 img = cv.imread(img_path)
 mask = cv.imread(mask_path, cv.COLOR_BGR2GRAY)
-
+show_image(mask)
 if invert_mask:
     mask = cv.bitwise_not(mask)
     _, mask = cv.threshold(mask, 1, 255, cv.THRESH_BINARY)
+    show_image(mask)
 
 h, w = img.shape[:2]
 
@@ -199,7 +200,7 @@ plants = extraction(seeds_pos, pruned_skeleton, dist, orig_img)
 
 spline_parameters = {
                         'tension': 0.5,
-                        'spacing': 20 
+                        'spacing': 50 
                     }
 
 # Create Plant structure
@@ -208,8 +209,14 @@ rootnav_plants = [ RootNavPlant(idx, 'orzo') for idx in range(len(plants)) ]
 for i, plant in enumerate(plants):
     for root in plant.roots:
         points = root.points
-        points = [ (x, y) for y, x in root.points ]
-        tmp_root = RootNavRoot(points, spline_tension=spline_parameters['tension'], spline_knot_spacing=spline_parameters['spacing'])
+        diameters = [ dist[p] for p in points ]
+        points = [ (x, y) for y, x in points ]
+        tmp_root = RootNavRoot(points, 
+                                diameters, 
+                                plant.stem, 
+                                spline_tension=spline_parameters['tension'], 
+                                spline_knot_spacing=spline_parameters['spacing']
+                              )
         rootnav_plants[i].roots.append(tmp_root)
 
 output_dir = '/home/alebrasi/Videos/rsml_tests'
