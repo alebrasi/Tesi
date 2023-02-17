@@ -4,9 +4,9 @@ import numpy as np
 from preprocess import automatic_brightness_and_contrast, adjust_gamma, f
 from utils import show_image
 
-def refine_region_below(img, dbg_ctx):
-    f_img, alpha, beta = automatic_brightness_and_contrast(img, 37)
-    show_image((f_img, 'automatic brightness and contrast'), dbg_ctx=dbg_ctx)
+def refine_region_below(img, mask, dbg_ctx): 
+    f_img, alpha, beta = automatic_brightness_and_contrast(img, mask, 37)
+    show_image((f_img[..., ::-1], 'automatic brightness and contrast'), dbg_ctx=dbg_ctx)
 
     # Noise removes
     blur = cv.pyrDown(f_img)
@@ -21,7 +21,8 @@ def refine_region_below(img, dbg_ctx):
 
     show_image([(l, 'luminosità'), (clahe_img, 'clahe')], dbg_ctx=dbg_ctx)
 
-    _, l = cv.threshold(clahe_img, 50, 255, cv.THRESH_TOZERO)
+    #_, l = cv.threshold(clahe_img, 50, 255, cv.THRESH_TOZERO)
+    l[l == 50] = 0
     show_image(l)
 
     thr = cv.adaptiveThreshold(
@@ -46,7 +47,8 @@ def locate_seeds(img, dbg_ctx):
     show_image(hsv, cmap='magma', dbg_ctx=dbg_ctx)
 
     #res = cv.inRange(hsv, (15, 80, 100), (35, 255, 255))
-    res = cv.inRange(hsv, (15, 100, 100), (25, 255, 255))
+    #res = cv.inRange(hsv, (15, 100, 100), (25, 255, 255))
+    res = cv.inRange(hsv, (12, 100, 100), (25, 255, 255))
     show_image([res, img[..., ::-1]], dbg_ctx=dbg_ctx)
 
     ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
@@ -69,6 +71,8 @@ def locate_seeds(img, dbg_ctx):
         else:
             x, y = stat[cv.CC_STAT_LEFT], stat[cv.CC_STAT_TOP]
             width, height = stat[cv.CC_STAT_WIDTH], stat[cv.CC_STAT_HEIGHT]
+            if width < 40 or height < 40:
+                continue
             xs = xx[labels == i]
             ys = yy[labels == i]
             pos = np.column_stack((xs, ys))
