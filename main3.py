@@ -1,12 +1,14 @@
 import cv2 as cv
 from skimage.morphology import skeletonize, medial_axis, thin
 from skimage.graph import pixel_graph
+from skimage.exposure import match_histograms
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 import math
 import argparse
 import sys
+import random
 
 from preprocess import adjust_gamma, automatic_brightness_and_contrast, clahe_bgr, remove_cc, locate_seed_line
 from utils import find_file, show_image, f, DebugContext
@@ -27,6 +29,8 @@ def find_nearest(node, nodes):
     return nodes[p]
 
 matplotlib.use('TKAgg')
+cv.setRNGSeed(123)
+random.seed(123)
 
 #image_path = '/home/alebrasi/Documents/tesi/Dataset/sessioni'
 #mask_path = '/home/alebrasi/Documents/tesi/segmentate_prof/'
@@ -42,7 +46,7 @@ invert_mask = True
 # Fare test su 498 e 87R
 # 105, 950R
 image_name = '109R'
-
+reference_hist_img_name = '995'
 
 parser = argparse.ArgumentParser()
 parser.add_argument('image_name', metavar='IMG')
@@ -73,6 +77,7 @@ dbg_ctx_locate_seeds = DebugContext('locate_seeds', d_locate_seeds)
 
 mask_path = find_file(mask_path, f'{image_name}.{mask_extension}')
 img_path = find_file(image_path, f'{image_name}.{image_extension}')
+reference_hist_path = find_file(image_path, f'{reference_hist_img_name}.{image_extension}')
 
 print(f'Image path: {img_path}')
 print(f'Mask path: {mask_path}')
@@ -81,6 +86,10 @@ print(f'Mask path: {mask_path}')
 
 img = cv.imread(img_path)
 mask = cv.imread(mask_path, cv.COLOR_BGR2GRAY)
+reference_hist_image = cv.imread(reference_hist_path)
+
+img = match_histograms(img, reference_hist_image, channel_axis=-1)
+
 show_image(mask)
 if invert_mask:
     mask = cv.bitwise_not(mask)
@@ -131,7 +140,7 @@ show_image((segmented, 'segmentata'), dbg_ctx=dbg_ctx_post)
 region_below = segmented[left_pt[1]:, :]
 region_above = segmented[:left_pt[1], :]
 mask_above = mask[:left_pt[1], :]
-
+mask_below = mask[left_pt[1]:, :]
 # ------------ Seeds localization ----------------------------------
 top_left_pt, bottom_right_pt = seed_line_roi[0], seed_line_roi[1]
 br_y, br_x = bottom_right_pt
@@ -144,7 +153,7 @@ seeds_bb = locate_seeds(seeds_roi.copy(), dbg_ctx_locate_seeds)
 h, w = segmented.shape[:2]
 refined_mask = np.zeros((h, w), dtype=np.uint8)
 
-refined_mask[left_pt[1]:, :] = refine_region_below(region_below, dbg_ctx=dbg_ctx_region_below)
+refined_mask[left_pt[1]:, :] = refine_region_below(region_below, mask_below, dbg_ctx=dbg_ctx_region_below)
 refined_mask[:left_pt[1], :] = refine_region_above(mask_above, dgb_ctx_region_above)
 
 # Morphological closing inside seeds bounding box
@@ -173,7 +182,7 @@ refined_mask = smoothed_mask
 
 # ----------------- Skeletonization and prune -----------------------------------
 
-skeleton, dist = medial_axis(refined_mask.astype(bool), return_distance=True)
+skeleton, dist = medial_axis(refined_mask.astype(bool), return_distance=True, random_state=123)
 pruned_skeleton = prune3(skeleton.astype(np.uint8), 6)
 
 show_image([(skeleton, 'scheletro'), (pruned_skeleton, 'scheletro con branch < 6px potati')])
