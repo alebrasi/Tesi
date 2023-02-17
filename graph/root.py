@@ -1,5 +1,6 @@
 import copy
 import networkx as nx
+import math
 
 from graph.graph_creation import PointType
 
@@ -135,9 +136,10 @@ class Root:
             ema = type(self).G.edges[copied._ordered_edges[0]]['weight']
             for edge in copied._ordered_edges:
                 angle = type(self).G.edges[edge]['weight']
-                ema = self._calc_ema(ema, angle, self._ema_alpha)
+                #ema = self._calc_ema(ema, angle, self._ema_alpha)
+                copied._update_angle_EMA(edge)
 
-            copied._prev_angle_ema = ema
+            #copied._prev_angle_ema = ema
             copied._add_edge((node, node_neighbor))
 
             return copied
@@ -218,11 +220,12 @@ class Root:
 
     def _compare_neighbor(self, node, neighbor):
         G = type(self).G
+        # TODO: mettere tutti i seed
         if neighbor == self._plant._tip_start_node:
             return float('inf')
 
         edge = (node, neighbor)
-        return abs(int(self._prev_angle_ema) - G.edges[edge]['weight'])
+        return math.fabs(self._prev_angle_ema - G.edges[edge]['weight'])
 
     def _node_neighbors(self, edge):
         """
@@ -269,14 +272,19 @@ class Root:
             return True
 
         # There are more neighbors
+
+        # Get the neighbor with minimum angle difference
         min_edge, walked, angle = min(res, key=lambda n: n[2])
-        tmp = list(filter(lambda e: e[1] == False, res))
+        tmp = list(filter(lambda e: e[1] == False, res))    # List of non walked neighbors edges
         if len(tmp) > 0:
             min_edge1, _, angle1 = min(tmp, key=lambda e: e[2])
-            if (abs(angle1 - angle) < 45) and walked:
+            #if math.fabs(angle1 - angle) < 45:
+            #val1 = G.edges[(cur_node, min_edge)]['weight']
+            #val2 = G.edges[(cur_node, min_edge1)]['weight']
+
+            if angle1 < 45:
                 min_edge = min_edge1
         
         self._add_edge((cur_node, min_edge))
 
         return True
-
