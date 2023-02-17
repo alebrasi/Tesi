@@ -44,15 +44,28 @@ def clahe_bgr(img, clip, grid_size):
 
 # Automatic brightness and contrast optimization with optional histogram clipping
 # https://stackoverflow.com/questions/56905592/automatic-contrast-and-brightness-adjustment-of-a-color-photo-of-a-sheet-of-pape
-def automatic_brightness_and_contrast(image, clip_hist_percent=1):
+def automatic_brightness_and_contrast(image, mask, clip_hist_percent=1):
     gray = image
     if len(image.shape) == 3:
         gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
-    
-    gray = gray[gray > 0]
+    mean, std = cv.meanStdDev(gray[mask == 255])
+    print(f'Mean: {mean}, Std: {std[0][0]}')
+
+    #hist = cv.calcHist([gray], [0], mask, [256], [0, 256])
+    #plt.plot(hist)
+    #plt.show()
+
+    #if std[0][0] < 24.0:
+    #if mean[0][0] < 150:
+    #    clahe = cv.createCLAHE(clipLimit=20.0, tileGridSize=(30, 30))
+    #    gray1 = clahe.apply(gray)
+    #    _, thr = cv.threshold(gray1, 11, 255, cv.THRESH_TOZERO)
+    #    show_image([thr, gray])
+    #    show_image(gray)
+    #    gray = thr
 
     # Calculate grayscale histogram
-    hist = cv.calcHist([gray],[0],None,[256],[0,256])
+    hist = cv.calcHist([gray],[0],mask,[256],[0,256])
     hist_size = len(hist)
     
     # Calculate cumulative distribution from the histogram
@@ -67,7 +80,7 @@ def automatic_brightness_and_contrast(image, clip_hist_percent=1):
     clip_hist_percent /= 2.0
     
     # Locate left cut
-    minimum_gray = 0
+    minimum_gray = 0            # TODO: Provare con 0 o 1
     while accumulator[minimum_gray] < clip_hist_percent:
         minimum_gray += 1
     
@@ -161,6 +174,7 @@ def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10, dbg_ctx=
     h, w = horizontal_lines.shape[:2]
 
     rot_angle = math.degrees(theta)-90.0
+    #rot_angle = calc_rot_angle(theta, rho, 0, w-1)
     print(rot_angle)
 
     M = cv.getRotationMatrix2D((h//2, w//2), rot_angle, 1.0)
@@ -168,7 +182,9 @@ def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10, dbg_ctx=
     roi_offset_y, _ = rough_location[0]
 
     #y = int(rho*math.cos(math.radians(rot_angle))) + roi_offset_y + seed_line_offset_px 
-    y = int(rho/math.sin(theta)) + roi_offset_y + seed_line_offset_px 
+    #y = int(rho/math.sin(theta)) + roi_offset_y + seed_line_offset_px 
+    y = int(rho) + roi_offset_y + seed_line_offset_px
+    print(theta, " ", rho, " ", y, " ", rot_angle)
     
     pt1 = (0, y)
     pt2 = (w-1, y)
@@ -244,3 +260,9 @@ def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10, dbg_ctx=
 
     return M, left_pt, right_pt
     """
+
+def calc_rot_angle(theta, rho, x1, x2):
+    calc = lambda rho, theta, x: (rho/math.sin(theta)) - (math.cos(theta)/math.sin(theta))*x
+    y1 = calc(rho, theta, x1)
+    y2 = calc(rho, theta, x2)
+    return math.degrees(math.atan2(y2-y1, (x2-x1)))
