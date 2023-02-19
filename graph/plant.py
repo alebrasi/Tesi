@@ -10,13 +10,13 @@ class Plant:
     def attach_graph(G):
         Plant.G = G
 
-    def __init__(self, seed, tip_start_node):
+    def __init__(self, seed, stem_start_node):
         self._seed = seed
         #self._roots = set()
         self._roots = []
         self._current_root = None
         self._stem = None
-        self._tip_start_node = tip_start_node
+        self._stem_start_node = stem_start_node
         self._seed_node_neighbors = list(type(self).G.neighbors(seed))
         self._seed_node_neighbors.remove(tip_start_node)
         type(self).G.edges[(seed, tip_start_node)]['walked'] = True
@@ -29,7 +29,7 @@ class Plant:
         return self._stem
 
     def _find_stem(self):
-        self._stem = Root(self, (self._seed, self._tip_start_node))
+        self._stem = Root(self, (self._seed, self._stem_start_node))
         while self._stem.explore():
             continue
 
@@ -41,6 +41,7 @@ class Plant:
         new_root = None
         if len(self._seed_node_neighbors) == 0:
             # Finds the root that has the highest non walked neighbor
+            # TODO: Provare a fare un sort e guardare quello con angolo di inserimento minore
             root = min(
                         filter(lambda r: r[1] != None, 
                                 map(lambda r: (r, r.highest_non_walked_node), 
@@ -69,6 +70,8 @@ class Plant:
         #return new_root
 
     def compute(self):
+        #while self._current_root.explore():
+        #    pass
         if not self._current_root.explore():
             if not self._init_new_root():
                 return False
