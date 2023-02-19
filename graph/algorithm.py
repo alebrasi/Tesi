@@ -7,7 +7,6 @@ import random
 from graph.graph_creation import PointType
 from graph.plant import Plant
 from graph.root import Root
-from path_extraction.path import walk_to_node
 
 def extract(G, angle_par_name='weight'):
     ANGLE = angle_par_name
