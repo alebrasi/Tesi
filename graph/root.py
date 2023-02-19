@@ -26,6 +26,10 @@ class Root:
 
         self._split_node = None
 
+    @property
+    def angle(self):
+        return self._prev_angle_ema
+
     def __str__(self):
         return f'Start edge: {self._start_edge} \n \
                 Cur edge: {self._cur_edge} \n \
@@ -288,3 +292,37 @@ class Root:
         self._add_edge((cur_node, min_edge))
 
         return True
+
+    def is_right_quadrant(self, from_angle, to_angle):
+        q1 = self.get_quadrant(from_angle)
+        q2 = self.get_quadrant(to_angle)
+        if ((q1 == 1) or (q1 == 2)) and ((q2 == 1) or (q2 == 2)):
+            return True
+        
+        if ((q1 == 3) or (q1 == 4)) and ((q2 == 3) or (q2 == 4)):
+            return True
+
+        return False
+
+    def get_quadrant(self, angle):
+        """
+        Returns the quadrant (1, 2, 3, or 4) of the given angle in degrees.
+        """
+        if angle < 0 or angle > 360:
+            raise ValueError("Angle must be between 0 and 360 degrees.")
+        elif angle == 0 or angle == 360:
+            return 1
+        elif angle > 0 and angle < 90:
+            return 1
+        elif angle == 90:
+            return 2
+        elif angle > 90 and angle < 180:
+            return 2
+        elif angle == 180:
+            return 3
+        elif angle > 180 and angle < 270:
+            return 3
+        elif angle == 270:
+            return 4
+        else:
+            return 4
