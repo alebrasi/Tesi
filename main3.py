@@ -88,7 +88,6 @@ img = cv.imread(img_path)
 mask = cv.imread(mask_path, cv.COLOR_BGR2GRAY)
 reference_hist_image = cv.imread(reference_hist_path)
 
-img = match_histograms(img, reference_hist_image, channel_axis=-1)
 
 show_image(mask)
 if invert_mask:
@@ -133,9 +132,10 @@ mask = cv.morphologyEx(mask, cv.MORPH_CLOSE, ker)
 
 show_image((mask, 'maschera'), dbg_ctx=dbg_ctx_post)
 
-segmented = cv.bitwise_and(img, img, mask=mask)
-
-show_image((segmented, 'segmentata'), dbg_ctx=dbg_ctx_post)
+matched_hist_img = match_histograms(img, reference_hist_image, channel_axis=-1)
+show_image([img[..., ::-1], matched_hist_img[..., ::-1]], dbg_ctx=dbg_ctx_post)
+segmented = cv.bitwise_and(matched_hist_img, matched_hist_img, mask=mask)
+show_image((segmented[..., ::-1], 'segmentata'), dbg_ctx=dbg_ctx_post)
 
 region_below = segmented[left_pt[1]:, :]
 region_above = segmented[:left_pt[1], :]
@@ -144,7 +144,7 @@ mask_below = mask[left_pt[1]:, :]
 # ------------ Seeds localization ----------------------------------
 top_left_pt, bottom_right_pt = seed_line_roi[0], seed_line_roi[1]
 br_y, br_x = bottom_right_pt
-seeds_roi = segmented[:br_y, :br_x]
+seeds_roi = img[:br_y, :br_x]
 
 seeds_bb = locate_seeds(seeds_roi.copy(), dbg_ctx_locate_seeds)
 # -----------------------------------------------------------------
@@ -183,7 +183,16 @@ refined_mask = smoothed_mask
 # ----------------- Skeletonization and prune -----------------------------------
 
 skeleton, dist = medial_axis(refined_mask.astype(bool), return_distance=True, random_state=123)
-pruned_skeleton = prune3(skeleton.astype(np.uint8), 6)
+
+skeleton = skeleton.astype(np.uint8)
+cross_ker = np.array([[-1, 1, -1],
+                      [1, -1, 1],
+                      [-1, 1, -1]], dtype=np.uint8)
+cross_nodes = cv.morphologyEx(skeleton, cv.MORPH_HITMISS, cross_ker)
+skeleton = skeleton | cross_nodes
+
+pruned_skeleton = prune3(skeleton, 10)
+pruned_skeleton = thin(pruned_skeleton.astype(bool)).astype(np.uint8)
 
 show_image([(skeleton, 'scheletro'), (pruned_skeleton, 'scheletro con branch < 6px potati')])
 
