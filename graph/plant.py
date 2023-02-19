@@ -28,6 +28,10 @@ class Plant:
     def stem(self):
         return self._stem
 
+    @property
+    def seed_coords(self):
+        return type(self).G.nodes[self._seed]['pos']
+
     def _find_stem(self):
         self._stem = Root(self, (self._seed, self._stem_start_node))
         while self._stem.explore():
