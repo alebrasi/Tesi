@@ -18,8 +18,8 @@ class Plant:
         self._stem = None
         self._stem_start_node = stem_start_node
         self._seed_node_neighbors = list(type(self).G.neighbors(seed))
-        self._seed_node_neighbors.remove(tip_start_node)
-        type(self).G.edges[(seed, tip_start_node)]['walked'] = True
+        self._seed_node_neighbors.remove(stem_start_node)
+        type(self).G.edges[(seed, stem_start_node)]['walked'] = True
 
         self._init_new_root()
         self._find_stem()

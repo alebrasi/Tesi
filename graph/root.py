@@ -103,7 +103,7 @@ class Root:
         for node in self.nodes:
             neighbors = self.non_walked_neighbors(node)
             for neighbor in neighbors:
-                if neighbor == self._plant._tip_start_node:
+                if neighbor == self._plant._stem_start_node:
                     continue
                 non_walked_nodes.append((node, neighbor, G.nodes[node]['pos']))
 
@@ -221,7 +221,7 @@ class Root:
     def _compare_neighbor(self, node, neighbor):
         G = type(self).G
         # TODO: mettere tutti i seed
-        if neighbor == self._plant._tip_start_node:
+        if neighbor == self._plant._stem_start_node:
             return float('inf')
 
         edge = (node, neighbor)
@@ -282,7 +282,7 @@ class Root:
             #val1 = G.edges[(cur_node, min_edge)]['weight']
             #val2 = G.edges[(cur_node, min_edge1)]['weight']
 
-            if angle1 < 45:
+            if angle1 < 55: #and self.is_right_quadrant(val1, val2):
                 min_edge = min_edge1
         
         self._add_edge((cur_node, min_edge))
