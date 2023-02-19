@@ -7,6 +7,7 @@ import random
 from graph.graph_creation import PointType
 from graph.plant import Plant
 from graph.root import Root
+from path_extraction.path import walk_to_node
 
 def extract(G, angle_par_name='weight'):
     ANGLE = angle_par_name
@@ -23,9 +24,10 @@ def extract(G, angle_par_name='weight'):
     Root.attach_graph(G)
 
     for seed in seeds:
-        tip_start_node = min(G.neighbors(seed), 
-                             key=lambda n: G.edges[(seed, n)][ANGLE])
-        tmp = Plant(seed, tip_start_node)
+        stem_start_node = min(G.neighbors(seed), 
+                                key=lambda n: G.nodes[n]['pos'][0] # y coordinate of node
+                            )
+        tmp = Plant(seed, stem_start_node)
         plants.append(tmp)
         all_plants.append(tmp)
 
