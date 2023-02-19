@@ -234,25 +234,15 @@ def walk_to_node(skel, sender_p, start_p):
 
     return res, Path(path)
 
-def prune3(skel, branch_threshold, work_on_copy=True):
-    """
-    Prunes the branches from the skeleton that are equal or shorter than the threshold.
-
-    Parameters:
-        - skel (numpy.ndarray): Boolean numpy matrix that describes the skeleton
-        - branch_threshold (int): Branch threshold
-        - work_on_copy (bool): Whether or not the prune must be done on the original skeleton
-    """
+def get_nodes(skel):
+    kers = list()
+    skel = skel.copy().astype(np.uint8)
     nodes = np.zeros_like(skel)
-    pruned = skel
-    if work_on_copy:
-        pruned = skel.copy()
 
     """
     Kernels took from:
     https://stackoverflow.com/questions/43037692/how-to-find-branch-point-from-binary-skeletonize-image
     """
-    kers = list()
     kers.append(np.array([[0, 1, 0], 
                           [1, 1, 1], 
                           [0, 0, 0]]))
@@ -312,7 +302,7 @@ def prune3(skel, branch_threshold, work_on_copy=True):
             - '°' indicate the correct identified nodes
             - 'x' indicate the wrong identified node
         """
-        nodes += cv.morphologyEx(pruned, 
+        nodes += cv.morphologyEx(skel, 
                                  cv.MORPH_HITMISS, 
                                  ker, 
                                  borderType=cv.BORDER_CONSTANT,
@@ -322,6 +312,23 @@ def prune3(skel, branch_threshold, work_on_copy=True):
     # Grab coordinates of the nodes
     nodes_idx = np.argwhere(nodes.astype(bool))
 
+    return nodes_idx
+
+def prune3(skel, branch_threshold, work_on_copy=True):
+    """
+    Prunes the branches from the skeleton that are equal or shorter than the threshold.
+
+    Parameters:
+        - skel (numpy.ndarray): Boolean numpy matrix that describes the skeleton
+        - branch_threshold (int): Branch threshold
+        - work_on_copy (bool): Whether or not the prune must be done on the original skeleton
+    """
+    pruned = skel
+    if work_on_copy:
+        pruned = skel.copy()
+
+    nodes_idx = get_nodes(skel)
+    
     for node in nodes_idx:
         node = tuple(node)
         neighbors = valid_neighbors(node, root_neighbors, pruned)

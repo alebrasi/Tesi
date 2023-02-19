@@ -1,4 +1,4 @@
-from path_extraction.prune import valid_neighbors, seed_neighbors, root_neighbors, is_tip
+from path_extraction.prune import valid_neighbors, seed_neighbors, root_neighbors, is_tip, get_nodes
 from path_extraction.path import Path
 from path_extraction.vector_utils import Vector
 
@@ -226,52 +226,6 @@ def create_graph2(seeds, skeleton, distances, max_residual_err=1.0, min_points_l
     
     return H
 
-def get_nodes(skel):
-    kers = list()
-    skel = skel.copy().astype(np.uint8)
-    nodes = np.zeros_like(skel)
-    kers.append(np.array([[0, 1, 0], 
-                          [1, 1, 1], 
-                          [0, 0, 0]]))
-
-    kers.append(np.array([[1, 0, 1], 
-                          [0, 1, 0], 
-                          [1, 0, 0]]))
-
-    kers.append(np.array([[1, 0, 1], 
-                          [0, 1, 0], 
-                          [0, 1, 0]]))
-
-    kers.append(np.array([[0, 1, 0], 
-                          [1, 1, 0], 
-                          [0, 0, 1]]))
-
-    kers.append(np.array([[0, 0, 1], 
-                          [1, 1, 1], 
-                          [0, 1, 0]]))
-
-    kers = [np.rot90(kers[i], k=j) for i in range(5) for j in range(4)]
-
-    kers.append(np.array([[0, 1, 0], 
-                          [1, 1, 1], 
-                          [0, 1, 0]]))
-    
-    kers.append(np.array([[1, 0, 1], 
-                          [0, 1, 0], 
-                          [1, 0, 1]]))
-
-    for ker in kers:
-        nodes += cv.morphologyEx(skel, 
-                                 cv.MORPH_HITMISS, 
-                                 ker, 
-                                 borderType=cv.BORDER_CONSTANT,
-                                 borderValue=0
-                                )
-    
-    # Grab coordinates of the nodes
-    nodes_idx = np.argwhere(nodes.astype(bool))
-    return nodes_idx
-
 def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_lstsq=4):
     """
     Creates a networkx directed graph of the plant.
@@ -302,8 +256,12 @@ def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_ls
     skel = skeleton
 
     nodes_idx = get_nodes(skel)
+    bruh = cv.cvtColor(skel.astype(np.uint8), cv.COLOR_GRAY2BGR)
+    bruh[skel, ...] = [255, 255, 255]
 
     for node in nodes_idx:
+        y, x = node
+        bruh[y, x, :] = [0, 255, 0]
         node = tuple(node)
         neighbors = valid_neighbors(node, root_neighbors, skel)
         neighbors = [ n for n in neighbors if n not in visited_neighbors ]
@@ -315,7 +273,8 @@ def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_ls
             add_nodes_and_edges(G, node, path, max_residual_err, min_points_lstsq)
             if endpoint_type == PointType.TIP:
                 G.nodes[path.endpoint]['node_type'] = PointType.TIP
-
+    plt.imshow(bruh)
+    plt.show()
     for seed in seeds:
 
         # Walks to the first node that is below the given seed point 
