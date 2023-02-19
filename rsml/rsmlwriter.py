@@ -25,7 +25,10 @@ class RSMLWriter():
         scene = ET.SubElement(root, 'scene')
 
         for plant_id, p in enumerate(plants):
-            plant = ET.SubElement(scene, 'plant', id=str(plant_id+1), label="wheat_bluepaper")
+            plant = ET.SubElement(scene, 'plant', id=str(plant_id+1), label="barley")
+            annotations = ET.SubElement(plant, 'annotations')
+            stem_angle_annotation = ET.SubElement(annotations, 'annotation', name='stem angle')
+            ET.SubElement(stem_angle_annotation, 'value').text = str(p.stem_angle)
 
             for primary_id, pri in enumerate(p.roots):
                 priroot = ET.SubElement(plant, 'root', id=str(primary_id+1), label="primary", poaccession="1")
@@ -45,22 +48,6 @@ class RSMLWriter():
                 function = ET.SubElement(functions, 'function', domain='polyline', name='diameter')
                 for sample in pri.diameters:
                     s = ET.SubElement(function, 'sample', value=str(sample))
-
-                """
-                for lateral_id, lat in enumerate(pri.roots):
-                    latroot = ET.SubElement(priroot, 'root', id=str(primary_id+1)+"."+str(lateral_id+1), label="lateral")
-                    lat_geometry = ET.SubElement(latroot, 'geometry')
-                    lat_polyline = ET.SubElement(lat_geometry, 'polyline')
-                    
-                    lat_spline = lat.spline
-                    lat_rootnavspline = ET.SubElement(lat_geometry, 'rootnavspline', controlpointseparation=str(lat_spline.knot_spacing), tension=str(lat_spline.tension))
-                    for c in lat_spline.knots:
-                        point = ET.SubElement(lat_rootnavspline, 'point', x=str(c[0]), y=str(c[1]))
-
-                    lat_poly = lat_spline.polyline(sample_spacing = 1)
-                    for pt in lat_poly:
-                        point = ET.SubElement(lat_polyline, 'point', x=str(pt[0]), y=str(pt[1]))
-                """
                 
         tree = ET.ElementTree(root)
         rsml_text = prettify(root)
