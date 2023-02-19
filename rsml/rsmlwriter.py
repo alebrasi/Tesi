@@ -29,6 +29,9 @@ class RSMLWriter():
             annotations = ET.SubElement(plant, 'annotations')
             stem_angle_annotation = ET.SubElement(annotations, 'annotation', name='stem angle')
             ET.SubElement(stem_angle_annotation, 'value').text = str(p.stem_angle)
+            
+            seed_annotation = ET.SubElement(annotations, 'annotation', name='seed position')
+            ET.SubElement(seed_annotation, 'point', x=str(p.seed[1]), y=str(p.seed[0])) 
 
             for primary_id, pri in enumerate(p.roots):
                 priroot = ET.SubElement(plant, 'root', id=str(primary_id+1), label="primary", poaccession="1")
