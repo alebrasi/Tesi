@@ -28,6 +28,37 @@ def find_nearest(node, nodes):
 
     return nodes[p]
 
+def print_measures(plant, distances):
+    # Longest root
+    roots = plant.roots
+    root = max(roots, key=lambda r: len(r.points))
+    print('Longest root: ', len(root.points))
+
+    # Num roots
+    print('Number of roots:', len(plant.roots))
+
+    # Stem angle
+    print('Stem angle: ', plant.stem.angle)
+
+    # Root thickness
+    roots_thickness = []
+    all_points = set()
+    for i, r in enumerate(roots):
+        points = r.points
+        tmp = list(map(lambda p: distances[p], points))
+        print(f'Root {i+1}  mean thickness: ', sum(tmp)/len(tmp))
+        for i, point in enumerate(points):
+            roots_thickness.append(tmp[i])
+            y, x = point
+            all_points.add((x, y))
+
+    print('Average roots thickness: ', sum(roots_thickness)/len(roots_thickness))
+
+    # Convex hull
+    hull = cv.convexHull(np.array(list(all_points)))
+    print('Plant convex hull: ', cv.contourArea(hull))
+
+
 matplotlib.use('TKAgg')
 cv.setRNGSeed(123)
 random.seed(123)
@@ -222,7 +253,7 @@ spline_parameters = {
                     }
 
 # Create Plant structure
-rootnav_plants = [ RootNavPlant(idx, 'orzo') for idx in range(len(plants)) ]
+rootnav_plants = [ RootNavPlant(idx, 'orzo', p.stem, p.seed_coords) for idx, p in enumerate(plants) ]
 
 for i, plant in enumerate(plants):
     for root in plant.roots:
@@ -231,11 +262,11 @@ for i, plant in enumerate(plants):
         points = [ (x, y) for y, x in points ]
         tmp_root = RootNavRoot(points, 
                                 diameters, 
-                                plant.stem, 
                                 spline_tension=spline_parameters['tension'], 
                                 spline_knot_spacing=spline_parameters['spacing']
                               )
         rootnav_plants[i].roots.append(tmp_root)
+        print_measures(plant, dist)
 
 output_dir = '/home/alebrasi/Videos/rsml_tests'
 
