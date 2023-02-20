@@ -121,6 +121,7 @@ class Root:
 
 
     def copy_until_node(self, node, node_neighbor):
+        """
             copied = copy.deepcopy(self)
             tmp_edges = [ True if edge[1] == node else False for edge in copied._ordered_edges ]
             #print(id(self))
@@ -147,6 +148,16 @@ class Root:
             copied._add_edge((node, node_neighbor))
 
             return copied
+        """
+        tmp_root = Root(self._plant, self._start_edge)
+        tmp_root._split_node = (node, node_neighbor)
+        tmp_edges = [ True if edge[1] == node else False for edge in self._ordered_edges ]
+        idx = tmp_edges.index(True)
+        edges = self._ordered_edges[:idx+1]
+        for edge in edges:
+            tmp_root._add_edge(edge)
+        tmp_root._add_edge((node, node_neighbor))
+        return tmp_root
 
     @property
     def nodes(self):
@@ -238,11 +249,11 @@ class Root:
              the function returns the neighbors of 1 without the node 0
 
         Parameters:
-            - node: the node
-            - prev_node: the predecessor node
+            - edge: the edge
 
         Returns:
-        A list of neighbors excluded the predecessor node
+        A list of neighbors excluded the predecessor node. 
+        From the example it would be the node 0.
         """
         G = type(self).G
 
