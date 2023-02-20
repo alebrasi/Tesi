@@ -74,11 +74,11 @@ class Plant:
         #return new_root
 
     def compute(self):
-        #while self._current_root.explore():
-        #    pass
-        if not self._current_root.explore():
-            if not self._init_new_root():
-                return False
+        while self._current_root.explore():
+            pass
+        #if not self._current_root.explore():
+        if not self._init_new_root():
+            return False
 
         return True
 
