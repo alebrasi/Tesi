@@ -21,8 +21,14 @@ class Plant:
         self._seed_node_neighbors.remove(stem_start_node)
         type(self).G.edges[(seed, stem_start_node)]['walked'] = True
 
+        self._is_finished = False
+
         self._init_new_root()
         self._find_stem()
+
+    @property
+    def has_finished(self):
+        return self._is_finished
 
     @property
     def stem(self):
@@ -74,10 +80,14 @@ class Plant:
         #return new_root
 
     def compute(self):
+        if self._is_finished:
+            return False
+        
         while self._current_root.explore():
             pass
         #if not self._current_root.explore():
         if not self._init_new_root():
+            self._is_finished = True
             return False
 
         return True

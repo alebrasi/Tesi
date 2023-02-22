@@ -33,15 +33,20 @@ def extract(G, angle_par_name='weight'):
 
     print("Dita incrociate")
 
-    while len(plants) > 0:
-        """
-        for i in range(len(plants)):
-            if not (plants[i]).compute():
-                plant = plants[i]
-                plants.remove(plant)
-                #continue
-        """
-        plants[:] = filterfalse(lambda p: not p.compute(), plants)
+#    while len(plants) > 0:
+#        """
+#        for i in range(len(plants)):
+#            if not (plants[i]).compute():
+#                plant = plants[i]
+#                plants.remove(plant)
+#                #continue
+#        """
+#        plants[:] = filterfalse(lambda p: not p.compute(), plants)
+    while True:
+        if all(map(lambda p: p.has_finished, all_plants)):
+            break
+        for plant in all_plants:
+            plant.compute()
 
     return all_plants
 
