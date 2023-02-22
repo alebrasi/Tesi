@@ -21,8 +21,8 @@ def refine_region_below(img, mask, dbg_ctx):
 
     show_image([(l, 'luminosità'), (clahe_img, 'clahe')], dbg_ctx=dbg_ctx)
 
-    #_, l = cv.threshold(clahe_img, 50, 255, cv.THRESH_TOZERO)
-    l[l == 50] = 0
+    _, l = cv.threshold(clahe_img, 50, 255, cv.THRESH_TOZERO)
+    #l[l == 50] = 0
     show_image(l)
 
     thr = cv.adaptiveThreshold(
@@ -51,7 +51,7 @@ def locate_seeds(img, dbg_ctx):
     res = cv.inRange(hsv, (12, 100, 100), (25, 255, 255))
     show_image([res, img[..., ::-1]], dbg_ctx=dbg_ctx)
 
-    ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
+    ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (9, 9))
     morphed = cv.morphologyEx(res, cv.MORPH_OPEN, ker)
     # TODO: Dilate o close?
 
