@@ -9,6 +9,7 @@ import math
 import argparse
 import sys
 import random
+import json
 
 from preprocess import adjust_gamma, automatic_brightness_and_contrast, clahe_bgr, remove_cc, locate_seed_line
 from utils import find_file, show_image, f, DebugContext
@@ -28,35 +29,52 @@ def find_nearest(node, nodes):
 
     return nodes[p]
 
-def print_measures(plant, distances):
+def get_measures(plant_id, plant, distances):
     # Longest root
+
+    measures = {}
+
+    measures['plant_id'] = plant_id
     roots = plant.roots
-    root = max(roots, key=lambda r: len(r.points))
-    print('Longest root: ', len(root.points))
+    longest_root = max(roots, key=lambda r: len(r.points))
+    print('Max root lenght: ', len(root.points))
+    measures['max_root_lenght'] = len(root.points)
 
     # Num roots
     print('Number of roots:', len(plant.roots))
+    measures['roots_number'] = len(plant.roots)
 
     # Stem angle
     print('Stem angle: ', plant.stem.angle)
+    measures['stem_angle'] = plant.stem.angle
 
     # Root thickness
     roots_thickness = []
     all_points = set()
+    measures['roots_thickness'] = {}
     for i, r in enumerate(roots):
         points = r.points
         tmp = list(map(lambda p: distances[p], points))
-        print(f'Root {i+1}  mean thickness: ', sum(tmp)/len(tmp))
+        mean_thickness = sum(tmp)/len(tmp)
+        measures['roots_thickness'][i+1] = mean_thickness
+
+        print(f'Root {i+1}  mean thickness: ', mean_thickness)
         for i, point in enumerate(points):
             roots_thickness.append(tmp[i])
             y, x = point
             all_points.add((x, y))
 
-    print('Average roots thickness: ', sum(roots_thickness)/len(roots_thickness))
+    avg_roots_thickness = sum(roots_thickness)/len(roots_thickness)
+    print('Average roots thickness: ', avg_roots_thickness)
+    measures['average_roots_thickness'] = avg_roots_thickness
 
     # Convex hull
     hull = cv.convexHull(np.array(list(all_points)))
-    print('Plant convex hull: ', cv.contourArea(hull))
+    hull_area = cv.contourArea(hull)
+    print('Plant convex hull: ', hull_area)
+    measures['convex_hull'] = hull_area
+
+    return measures
 
 
 matplotlib.use('TKAgg')
@@ -76,7 +94,7 @@ invert_mask = True
 # 88R, 89R SUS
 # Fare test su 498 e 87R
 # 105, 950R
-image_name = '109R'
+image_name = '1004'
 reference_hist_img_name = '995'
 
 parser = argparse.ArgumentParser()
@@ -193,7 +211,7 @@ for bb in seeds_bb:
     x, y, w, h = bb
     tmp = refined_mask[y:y+h, x:x+w]
     refined_mask[y:y+h, x:x+w] = cv.morphologyEx(tmp, cv.MORPH_CLOSE, ker)
-
+show_image(refined_mask)
 smoothed_mask = cv.medianBlur(refined_mask, 5)       # Edge smoothing
 
 #ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (3,3))
@@ -214,7 +232,7 @@ refined_mask = smoothed_mask
 # ----------------- Skeletonization and prune -----------------------------------
 
 skeleton, dist = medial_axis(refined_mask.astype(bool), return_distance=True, random_state=123)
-
+show_image(skeleton)
 skeleton = skeleton.astype(np.uint8)
 cross_ker = np.array([[-1, 1, -1],
                       [1, -1, 1],
@@ -225,7 +243,7 @@ skeleton = skeleton | cross_nodes
 pruned_skeleton = prune3(skeleton, 10)
 pruned_skeleton = thin(pruned_skeleton.astype(bool)).astype(np.uint8)
 
-show_image([(skeleton, 'scheletro'), (pruned_skeleton, 'scheletro con branch < 6px potati')])
+show_image([(skeleton, 'scheletro'), (pruned_skeleton, 'scheletro con branch <= 10px potati')])
 
 pruned_skeleton = pruned_skeleton.astype(bool)
 # -------------------------------------------------------------------------------
@@ -241,7 +259,6 @@ for bb in seeds_bb:
         nearest = find_nearest(centroid, nodes)
         a, b = nearest
         seeds_pos.append((a, b))
-
 print(seeds_pos)
 show_image(pruned_skeleton)
 
@@ -255,6 +272,9 @@ spline_parameters = {
 # Create Plant structure
 rootnav_plants = [ RootNavPlant(idx, 'orzo', p.stem, p.seed_coords) for idx, p in enumerate(plants) ]
 
+measures = {}
+measures['plants'] = []
+
 for i, plant in enumerate(plants):
     for root in plant.roots:
         points = root.points
@@ -266,9 +286,14 @@ for i, plant in enumerate(plants):
                                 spline_knot_spacing=spline_parameters['spacing']
                               )
         rootnav_plants[i].roots.append(tmp_root)
-        print_measures(plant, dist)
+    measures['plants'].append(get_measures(i+1, plant, dist))
 
 output_dir = '/home/alebrasi/Videos/rsml_tests'
+
+# Dumps measures to json
+with open(f'{output_dir}/{image_name}.json', 'w', encoding='utf-8') as f:
+    json_measures = json.dumps(measures, ensure_ascii=False, indent=4)
+    f.write(json_measures)
 
 # Output to RSML
 RSMLWriter.save(image_name, output_dir, rootnav_plants)
