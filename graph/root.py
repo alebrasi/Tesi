@@ -202,7 +202,7 @@ class Root:
         return (alpha * angle) + ((1 - alpha) * ema)
 
     def _map_range(self, x, in_min, in_max, out_min, out_max):
-        return (x - in_min) * (out_max - out_min) // (in_max - in_min) + out_min
+        return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
 
     def _update_angle_EMA(self, edge):
         """
