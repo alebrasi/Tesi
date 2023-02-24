@@ -12,7 +12,6 @@ class Plant:
 
     def __init__(self, seed, stem_start_node):
         self._seed = seed
-        #self._roots = set()
         self._roots = []
         self._current_root = None
         self._stem = None
@@ -57,7 +56,7 @@ class Plant:
                                 map(lambda r: (r, r.highest_non_walked_node), 
                                     self._roots)
                                 ), 
-                        key=lambda k: k[1][2][0],
+                        key=lambda k: k[1][2][0],   # Order by y coordinate of highest non walked node of the root
                         default=None)
 
             if root == None:
@@ -67,7 +66,7 @@ class Plant:
             node, neighbor, pos = highest_node
 
             print('plant: ', node)
-            # FIXME: Fare la deepcopy degli edge della  root fino a quel nodo
+
             new_root = root.copy_until_node(node, neighbor)
         else:
             new_root = self._init_new_root_starting_from_seed()
@@ -76,8 +75,6 @@ class Plant:
         self._current_root = new_root
 
         return True
-        
-        #return new_root
 
     def compute(self):
         if self._is_finished:
@@ -85,7 +82,7 @@ class Plant:
         
         while self._current_root.explore():
             pass
-        #if not self._current_root.explore():
+
         if not self._init_new_root():
             self._is_finished = True
             return False
