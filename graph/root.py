@@ -201,6 +201,9 @@ class Root:
     def _calc_ema(self, ema, angle, alpha):
         return (alpha * angle) + ((1 - alpha) * ema)
 
+    def _map_range(self, x, in_min, in_max, out_min, out_max):
+        return (x - in_min) * (out_max - out_min) // (in_max - in_min) + out_min
+
     def _update_angle_EMA(self, edge):
         """
         # TODO Riscrivere meglio la doc
@@ -216,7 +219,12 @@ class Root:
         G = type(self).G
         #cur_angle = G.edges[self._cur_edge]['weight']
         cur_angle = G.edges[edge]['weight']
-        ema_alpha = G.edges[edge]['length'] / G.graph['max_edge_len']
+        #ema_alpha = G.edges[edge]['length'] / G.graph['max_edge_len']
+        
+        edge_len = G.edges[edge]['length']
+        ema_alpha = 0.8
+        if edge_len < 25:
+            ema_alpha = self._map_range(edge_len, 1, 25, 0.01, 0.8)
 
         if self._prev_angle_ema == None:
             self._prev_angle_ema = cur_angle
