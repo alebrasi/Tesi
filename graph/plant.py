@@ -22,7 +22,6 @@ class Plant:
 
         self._is_finished = False
 
-        self._init_new_root()
         self._find_stem()
 
     @property
@@ -78,14 +77,14 @@ class Plant:
 
     def compute(self):
         if self._is_finished:
-            return False
-        
-        while self._current_root.explore():
-            pass
+            return False 
 
         if not self._init_new_root():
             self._is_finished = True
-            return False
+            return False 
+
+        while self._current_root.explore():
+            pass
 
         return True
 
