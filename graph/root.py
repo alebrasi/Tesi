@@ -153,7 +153,7 @@ class Root:
         tmp_root._split_node = (node, node_neighbor)
         tmp_edges = [ True if edge[1] == node else False for edge in self._ordered_edges ]
         idx = tmp_edges.index(True)
-        edges = self._ordered_edges[:idx+1]
+        edges = self._ordered_edges[1:idx+1]    #Skips the first edge, which is added when the root is initialized
         for edge in edges:
             tmp_root._add_edge(edge)
         tmp_root._add_edge((node, node_neighbor))
@@ -243,7 +243,6 @@ class Root:
 
     def _compare_neighbor(self, node, neighbor):
         G = type(self).G
-        # TODO: mettere tutti i seed
         if neighbor == self._plant._stem_start_node:
             return float('inf')
 
