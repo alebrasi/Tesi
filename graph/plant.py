@@ -23,6 +23,12 @@ class Plant:
         self._is_finished = False
 
         self._find_stem()
+        for _ in range(len(self._seed_node_neighbors)):
+            new_root = self._init_new_root_starting_from_seed()
+            while new_root.explore():
+                pass
+            self._roots.append(new_root)
+        self._seed_node_neighbors = []
 
     @property
     def has_finished(self):
@@ -68,7 +74,8 @@ class Plant:
 
             new_root = root.copy_until_node(node, neighbor)
         else:
-            new_root = self._init_new_root_starting_from_seed()
+            #new_root = self._init_new_root_starting_from_seed()
+            pass
 
         self._roots.append(new_root)
         self._current_root = new_root
