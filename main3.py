@@ -46,7 +46,7 @@ def get_measures(plant_id, plant, distances):
 
     # Stem angle
     print('Stem angle: ', plant.stem.angle)
-    measures['stem_angle'] = plant.stem.angle
+    measures['stem_angle'] = round(plant.stem.angle, 2)
 
     # Root thickness
     roots_thickness = []
@@ -56,7 +56,7 @@ def get_measures(plant_id, plant, distances):
         points = r.points
         tmp = list(map(lambda p: distances[p], points))
         mean_thickness = sum(tmp)/len(tmp)
-        measures['roots_thickness'][i+1] = mean_thickness
+        measures['roots_thickness'][i+1] = round(mean_thickness, 2)
 
         print(f'Root {i+1}  mean thickness: ', mean_thickness)
         for i, point in enumerate(points):
@@ -66,13 +66,13 @@ def get_measures(plant_id, plant, distances):
 
     avg_roots_thickness = sum(roots_thickness)/len(roots_thickness)
     print('Average roots thickness: ', avg_roots_thickness)
-    measures['average_roots_thickness'] = avg_roots_thickness
+    measures['average_roots_thickness'] = round(avg_roots_thickness, 2)
 
     # Convex hull
     hull = cv.convexHull(np.array(list(all_points)))
     hull_area = cv.contourArea(hull)
     print('Plant convex hull: ', hull_area)
-    measures['convex_hull'] = hull_area
+    measures['convex_hull'] = round(hull_area, 2)
 
     return measures
 
@@ -81,9 +81,6 @@ matplotlib.use('TKAgg')
 cv.setRNGSeed(123)
 random.seed(123)
 
-#image_path = '/home/alebrasi/Documents/tesi/Dataset/sessioni'
-#mask_path = '/home/alebrasi/Documents/tesi/segmentate_prof/'
-
 image_path = '/home/alebrasi/Documents/tesi/Dataset/sessioni_crop/resize'
 mask_path = '/home/alebrasi/Documents/tesi/Dataset/sessioni_crop/segmentate_1024'
 
@@ -91,9 +88,6 @@ mask_extension = 'png'
 image_extension = 'jpg'
 invert_mask = True
 
-# 88R, 89R SUS
-# Fare test su 498 e 87R
-# 105, 950R
 image_name = '1004'
 reference_hist_img_name = '995'
 
@@ -106,6 +100,9 @@ parser.add_argument('--d_post_process', action='store_true', default=False)
 d_seed_line = False
 d_post_process = False
 no_extraction = False
+d_region_below = True
+d_region_above = True
+d_locate_seeds = True
 
 #"""
 args = parser.parse_args()
@@ -114,9 +111,6 @@ image_name = args.image_name
 d_seed_line = args.d_seed_line
 d_post_process = args.d_post_process
 #"""
-d_region_below = True
-d_region_above = True
-d_locate_seeds = True
 
 dbg_ctx_seed_line = DebugContext('seed_line', d_seed_line)
 dbg_ctx_post = DebugContext('post_process', d_post_process)
@@ -190,6 +184,7 @@ region_below = segmented[left_pt[1]:, :]
 region_above = segmented[:left_pt[1], :]
 mask_above = mask[:left_pt[1], :]
 mask_below = mask[left_pt[1]:, :]
+show_image(region_below[..., ::-1])
 # ------------ Seeds localization ----------------------------------
 top_left_pt, bottom_right_pt = seed_line_roi[0], seed_line_roi[1]
 br_y, br_x = bottom_right_pt
@@ -248,6 +243,9 @@ show_image([(skeleton, 'scheletro'), (pruned_skeleton, 'scheletro con branch <= 
 pruned_skeleton = pruned_skeleton.astype(bool)
 # -------------------------------------------------------------------------------
 
+tmp = pruned_skeleton.copy().astype(np.uint8)
+tmp = cv.cvtColor(tmp, cv.COLOR_GRAY2BGR)
+tmp[pruned_skeleton, ...] = [255, 255, 255]
 seeds_pos = []
 for bb in seeds_bb:
     x, y, w, h = bb
@@ -257,8 +255,12 @@ for bb in seeds_bb:
     nodes = np.argwhere(arr) + [y, x]
     if len(nodes) > 0:
         nearest = find_nearest(centroid, nodes)
+        cv.rectangle(tmp, bb, (0,255,0), 1)
         a, b = nearest
+        tmp[centroid[0], centroid[1], ...] = [0,255,255]
+        tmp[a, b, ...] = [0, 0,255]
         seeds_pos.append((a, b))
+show_image(tmp[:, ::-1, ::-1])
 print(seeds_pos)
 show_image(pruned_skeleton)
 
