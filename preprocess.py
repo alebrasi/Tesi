@@ -55,15 +55,6 @@ def automatic_brightness_and_contrast(image, mask, clip_hist_percent=1):
     #plt.plot(hist)
     #plt.show()
 
-    #if std[0][0] < 24.0:
-    #if mean[0][0] < 150:
-    #    clahe = cv.createCLAHE(clipLimit=20.0, tileGridSize=(30, 30))
-    #    gray1 = clahe.apply(gray)
-    #    _, thr = cv.threshold(gray1, 11, 255, cv.THRESH_TOZERO)
-    #    show_image([thr, gray])
-    #    show_image(gray)
-    #    gray = thr
-
     # Calculate grayscale histogram
     hist = cv.calcHist([gray],[0],mask,[256],[0,256])
     hist_size = len(hist)
