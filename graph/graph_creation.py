@@ -292,7 +292,8 @@ def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_ls
 
     all_edges_len = [ G.edges[e]['length'] for e in G.edges ]
     max_edge_len = max(all_edges_len)
-    G.graph['max_edge_len'] = (max_edge_len/0.8) - max_edge_len
+    #G.graph['max_edge_len'] = (max_edge_len/0.8) - max_edge_len
+    G.graph['max_edge_len'] = (max_edge_len/0.8)
 
     H = nx.convert_node_labels_to_integers(G, label_attribute='pos')
     
