@@ -100,9 +100,9 @@ parser.add_argument('--d_post_process', action='store_true', default=False)
 d_seed_line = False
 d_post_process = False
 no_extraction = False
-d_region_below = True
-d_region_above = True
-d_locate_seeds = True
+d_region_below = False
+d_region_above = False
+d_locate_seeds = False
 
 #"""
 args = parser.parse_args()
@@ -136,7 +136,7 @@ show_image(mask)
 if invert_mask:
     mask = cv.bitwise_not(mask)
     _, mask = cv.threshold(mask, 1, 255, cv.THRESH_BINARY)
-    show_image(mask)
+    show_image(mask, dbg_ctx=dbg_ctx_post)
 
 h, w = img.shape[:2]
 
@@ -206,7 +206,7 @@ for bb in seeds_bb:
     x, y, w, h = bb
     tmp = refined_mask[y:y+h, x:x+w]
     refined_mask[y:y+h, x:x+w] = cv.morphologyEx(tmp, cv.MORPH_CLOSE, ker)
-show_image(refined_mask)
+show_image(refined_mask, dbg_ctx=dbg_ctx_post)
 smoothed_mask = cv.medianBlur(refined_mask, 5)       # Edge smoothing
 
 #ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (3,3))
@@ -218,16 +218,16 @@ for i, cnt in enumerate(cnts):
     if cv.contourArea(cnt) < 30:
         cv.drawContours(smoothed_mask, cnts, i, 255, -1)
 
-show_image([(refined_mask, 'maschera rifinita'), (smoothed_mask, 'bordi smussati')])
-show_image((cv.bitwise_and(orig_img, orig_img, mask=smoothed_mask)[..., ::-1], 'risultato segmentazione'))
-
+show_image([(refined_mask, 'maschera rifinita'), (smoothed_mask, 'bordi smussati')], dbg_ctx=dbg_ctx_post)
+show_image((cv.bitwise_and(orig_img, orig_img, mask=smoothed_mask)[..., ::-1], 'risultato segmentazione'), dbg_ctx=dbg_ctx_post)
+show_image((smoothed_mask, "bordi smussati"), dbg_ctx=dbg_ctx_post)
 refined_mask = smoothed_mask
 # -------------------------------------------------------------------------------
 
 # ----------------- Skeletonization and prune -----------------------------------
 
 skeleton, dist = medial_axis(refined_mask.astype(bool), return_distance=True, random_state=123)
-show_image(skeleton)
+show_image(skeleton, dbg_ctx=dbg_ctx_post)
 skeleton = skeleton.astype(np.uint8)
 cross_ker = np.array([[-1, 1, -1],
                       [1, -1, 1],
@@ -238,7 +238,7 @@ skeleton = skeleton | cross_nodes
 pruned_skeleton = prune3(skeleton, 10)
 pruned_skeleton = thin(pruned_skeleton.astype(bool)).astype(np.uint8)
 
-show_image([(skeleton, 'scheletro'), (pruned_skeleton, 'scheletro con branch <= 10px potati')])
+show_image([(skeleton, 'scheletro'), (pruned_skeleton, 'scheletro con branch <= 10px potati')], dbg_ctx=dbg_ctx_post)
 
 pruned_skeleton = pruned_skeleton.astype(bool)
 # -------------------------------------------------------------------------------
@@ -260,9 +260,9 @@ for bb in seeds_bb:
         tmp[centroid[0], centroid[1], ...] = [0,255,255]
         tmp[a, b, ...] = [0, 0,255]
         seeds_pos.append((a, b))
-show_image(tmp[:, ::-1, ::-1])
+show_image(tmp[:, ::-1, ::-1], dbg_ctx=dbg_ctx_post)
 print(seeds_pos)
-show_image(pruned_skeleton)
+show_image(pruned_skeleton, dbg_ctx=dbg_ctx_post)
 
 plants = extraction(seeds_pos, pruned_skeleton, dist, orig_img)
 
