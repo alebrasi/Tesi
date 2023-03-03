@@ -24,6 +24,10 @@ def boolean_matrix_to_rgb(m):
     m[m == 1] = 255
     return cv.cvtColor(m, cv.COLOR_GRAY2BGR)
 
+def hsv2bgr(h, s=255, v=255):
+    c = np.uint8([[[h, s, v]]])
+    return cv.cvtColor(c, cv.COLOR_HSV2BGR).reshape(1,1,3)[0][0]
+
 def extraction(seeds, skel, distance, orig_img):
     skel2 = boolean_matrix_to_rgb(skel)
     h, w = skel.shape[:2]
@@ -44,18 +48,24 @@ def extraction(seeds, skel, distance, orig_img):
 
     all_p = orig_img
     all_p[skel, ...] = [0,0,0]
+    show_image(all_p[..., ::-1])
     cv.namedWindow('image', cv.WINDOW_FULLSCREEN)
-
+    plants1=[]
     for i, plant in enumerate(plants, 0):
         print(f'Plant: {i}')
         print(f'Num roots: {len(plant.roots)}')
         mask = np.zeros((h, w, 3))
+        #color1 = (list(np.random.choice(range(150, 255), size=3)))
+        hue = None
+        while (hue == None) or (hue > 35 and hue < 86) or (hue > 105 and hue < 135):
+            hue = np.random.choice(range(1, 179), size=1)
+        color1 = hsv2bgr(hue)
         for root in plant.roots:
             print(root.edges)
             print(root._edges)
             print(root._split_node)
             print('\n\n\n')
-            color1 = (list(np.random.choice(range(150, 255), size=3)))  
+            #color1 = (list(np.random.choice(range(150, 255), size=3)))  
             points = np.array(root.points)
             for point in points:
                 #print(point)
@@ -63,9 +73,9 @@ def extraction(seeds, skel, distance, orig_img):
                 
                 mask[y, x, i] = 255
                 all_p[y, x, :] = color1
-                cv.imshow('image', all_p.astype(np.uint8))
-                cv.waitKey(1)
-                time.sleep(0.01)
+                #cv.imshow('image', all_p.astype(np.uint8))
+                #cv.waitKey(1)
+                #time.sleep(0.01)
         
         print('Stem:')
         points = np.array(plant.stem.points)
@@ -73,10 +83,12 @@ def extraction(seeds, skel, distance, orig_img):
         for point in points:
             y, x = point
             all_p[y, x, :] = (0, 255 , 0)
-            cv.imshow('image', all_p.astype(np.uint8))
-            cv.waitKey(1)
-            time.sleep(0.01)
+            #cv.imshow('image', all_p.astype(np.uint8))
+            #cv.waitKey(1)
+            #time.sleep(0.01)
     print('Done!')
+    
+    cv.imshow('image', all_p.astype(np.uint8))
     while True:
         if cv.waitKey(20) & 0xFF == 27:
             break
