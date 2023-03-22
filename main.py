@@ -96,6 +96,9 @@ parser.add_argument('image_name', metavar='IMG')
 parser.add_argument('--no_extraction', action='store_true')
 parser.add_argument('--d_seed_line', action='store_true', default=False)
 parser.add_argument('--d_post_process', action='store_true', default=False)
+parser.add_argument('--d_region_below', action='store_true', default=False)
+parser.add_argument('--d_locate_seeds', action='store_true', default=False)
+parser.add_argument('--d_basic', action='store_true', default=False)
 
 d_seed_line = False
 d_post_process = False
@@ -103,6 +106,7 @@ no_extraction = False
 d_region_below = False
 d_region_above = False
 d_locate_seeds = False
+d_basic = False
 
 #"""
 args = parser.parse_args()
@@ -110,6 +114,9 @@ no_extraction = args.no_extraction
 image_name = args.image_name
 d_seed_line = args.d_seed_line
 d_post_process = args.d_post_process
+d_region_below = args.d_region_below
+d_locate_seeds = args.d_locate_seeds
+d_basic = args.d_basic
 #"""
 
 dbg_ctx_seed_line = DebugContext('seed_line', d_seed_line)
@@ -117,6 +124,7 @@ dbg_ctx_post = DebugContext('post_process', d_post_process)
 dbg_ctx_region_below = DebugContext('region_below', d_region_below)
 dgb_ctx_region_above = DebugContext('region_abow', d_region_above)
 dbg_ctx_locate_seeds = DebugContext('locate_seeds', d_locate_seeds)
+dbg_ctx_basic = DebugContext('basic', d_basic)
 
 mask_path = find_file(mask_path, f'{image_name}.{mask_extension}')
 img_path = find_file(image_path, f'{image_name}.{image_extension}')
@@ -131,11 +139,11 @@ img = cv.imread(img_path)
 mask = cv.imread(mask_path, cv.COLOR_BGR2GRAY)
 reference_hist_image = cv.imread(reference_hist_path)
 
-
-show_image(mask)
+show_image(img[..., ::-1], dbg_ctx=dbg_ctx_basic)
 if invert_mask:
     mask = cv.bitwise_not(mask)
     _, mask = cv.threshold(mask, 1, 255, cv.THRESH_BINARY)
+    show_image(mask, dbg_ctx=dbg_ctx_basic)
     show_image(mask, dbg_ctx=dbg_ctx_post)
 
 h, w = img.shape[:2]
@@ -184,7 +192,7 @@ region_below = segmented[left_pt[1]:, :]
 region_above = segmented[:left_pt[1], :]
 mask_above = mask[:left_pt[1], :]
 mask_below = mask[left_pt[1]:, :]
-show_image(region_below[..., ::-1])
+show_image(region_below[..., ::-1], dbg_ctx=dbg_ctx_region_below)
 # ------------ Seeds localization ----------------------------------
 top_left_pt, bottom_right_pt = seed_line_roi[0], seed_line_roi[1]
 br_y, br_x = bottom_right_pt
@@ -221,6 +229,7 @@ for i, cnt in enumerate(cnts):
 show_image([(refined_mask, 'maschera rifinita'), (smoothed_mask, 'bordi smussati')], dbg_ctx=dbg_ctx_post)
 show_image((cv.bitwise_and(orig_img, orig_img, mask=smoothed_mask)[..., ::-1], 'risultato segmentazione'), dbg_ctx=dbg_ctx_post)
 show_image((smoothed_mask, "bordi smussati"), dbg_ctx=dbg_ctx_post)
+cv.imwrite('458R_mask_demo.png', smoothed_mask)
 refined_mask = smoothed_mask
 # -------------------------------------------------------------------------------
 

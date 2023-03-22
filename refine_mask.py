@@ -23,7 +23,7 @@ def refine_region_below(img, mask, dbg_ctx):
 
     _, l = cv.threshold(clahe_img, 50, 255, cv.THRESH_TOZERO)
     #l[l == 50] = 0
-    show_image(l)
+    show_image(l, dbg_ctx=dbg_ctx)
 
     thr = cv.adaptiveThreshold(
         l, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 21, 0)
