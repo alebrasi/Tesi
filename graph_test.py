@@ -42,8 +42,7 @@ def extraction(seeds, skel, distance, orig_img):
     node_color = [ color_map[G.nodes[node]['node_type']] for node in G ]
 
     print(orig_img.shape)
-    draw_graph(G, with_labels=True, node_color=node_color, node_size=20)
-    # FIXME: la 88R va in loop
+    draw_graph(G, with_labels=True, node_color=node_color, node_size=20, invert_xaxis=True)
     plants = extract(G)
 
     all_p = orig_img
@@ -51,21 +50,24 @@ def extraction(seeds, skel, distance, orig_img):
     show_image(all_p[..., ::-1])
     cv.namedWindow('image', cv.WINDOW_FULLSCREEN)
     plants1=[]
+    colors = [(238, 255, 150), (0, 0, 255), (239, 0, 255)]
+    #time.sleep(10)
     for i, plant in enumerate(plants, 0):
         print(f'Plant: {i}')
         print(f'Num roots: {len(plant.roots)}')
         mask = np.zeros((h, w, 3))
         #color1 = (list(np.random.choice(range(150, 255), size=3)))
-        hue = None
-        while (hue == None) or (hue > 35 and hue < 86) or (hue > 105 and hue < 135):
-            hue = np.random.choice(range(1, 179), size=1)
-        color1 = hsv2bgr(hue)
+        #hue = None
+        #while (hue == None) or (hue > 35 and hue < 86) or (hue > 105 and hue < 135):
+        #    hue = np.random.choice(range(1, 179), size=1)
+        #color1 = hsv2bgr(hue)
         for root in plant.roots:
             print(root.edges)
             print(root._edges)
             print(root._split_node)
             print('\n\n\n')
             #color1 = (list(np.random.choice(range(150, 255), size=3)))  
+            color1 = colors[i]
             points = np.array(root.points)
             for point in points:
                 #print(point)
@@ -73,8 +75,13 @@ def extraction(seeds, skel, distance, orig_img):
                 
                 mask[y, x, i] = 255
                 all_p[y, x, :] = color1
-                #cv.imshow('image', all_p.astype(np.uint8))
-                #cv.waitKey(1)
+                for y1 in range(y-1, y+2):
+                    for x1 in range(x-1, x+2):
+                #all_p[y-1, x-1, :] = color1
+                #all_p[y+1, x+1, :] = color1
+                        all_p[y1, x1, :] = color1
+                cv.imshow('image', all_p.astype(np.uint8))
+                cv.waitKey(1)
                 #time.sleep(0.01)
         
         print('Stem:')
@@ -82,10 +89,12 @@ def extraction(seeds, skel, distance, orig_img):
         print(plant.stem.edges)
         for point in points:
             y, x = point
-            all_p[y, x, :] = (0, 255 , 0)
-            #cv.imshow('image', all_p.astype(np.uint8))
-            #cv.waitKey(1)
-            #time.sleep(0.01)
+            for y1 in range(y-1, y+2):
+                for x1 in range(x-1, x+2):
+                    all_p[y1, x1, :] = (0, 255 , 0)
+            cv.imshow('image', all_p.astype(np.uint8))
+            cv.waitKey(1)
+        #time.sleep(10)
     print('Done!')
     
     cv.imshow('image', all_p.astype(np.uint8))
@@ -95,7 +104,7 @@ def extraction(seeds, skel, distance, orig_img):
 
     cv.destroyAllWindows()
 
-    draw_graph(G, with_labels=True, node_color=node_color, node_size=20, invert_xaxis=False)
+    #draw_graph(G, with_labels=True, node_color=node_color, node_size=20, invert_xaxis=False)
     return plants
 
 if __name__ == '__main__':
