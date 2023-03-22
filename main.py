@@ -11,6 +11,7 @@ import sys
 import random
 import json
 import toml
+import os
 
 from preprocess import adjust_gamma, automatic_brightness_and_contrast, clahe_bgr, remove_cc, locate_seed_line
 from utils import find_file, show_image, f, DebugContext
@@ -317,7 +318,8 @@ for i, plant in enumerate(plants):
 
 
 # Dumps measures to json
-with open(f'{RSML_output_dir}/{image_name}.json', 'w', encoding='utf-8') as f:
+measures_output_dir = os.path.join(RSML_output_dir, f'{image_name}.json')
+with open(measures_output_dir, 'w', encoding='utf-8') as f:
     json_measures = json.dumps(measures, ensure_ascii=False, indent=4)
     f.write(json_measures)
 
