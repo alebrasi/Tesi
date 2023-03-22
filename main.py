@@ -10,6 +10,7 @@ import argparse
 import sys
 import random
 import json
+import toml
 
 from preprocess import adjust_gamma, automatic_brightness_and_contrast, clahe_bgr, remove_cc, locate_seed_line
 from utils import find_file, show_image, f, DebugContext
@@ -81,12 +82,27 @@ matplotlib.use('TKAgg')
 cv.setRNGSeed(123)
 random.seed(123)
 
-image_path = '/home/alebrasi/Documents/tesi/Dataset/sessioni_crop/resize'
-mask_path = '/home/alebrasi/Documents/tesi/Dataset/sessioni_crop/segmentate_1024'
+configs = toml.load('config.toml')
 
-mask_extension = 'png'
-image_extension = 'jpg'
-invert_mask = True
+#image_path = '/home/alebrasi/Documents/tesi/Dataset/sessioni_crop/resize'
+#mask_path = '/home/alebrasi/Documents/tesi/Dataset/sessioni_crop/segmentate_1024'
+image_path = configs['images']['dir']
+mask_path = configs['masks']['dir']
+
+mask_extension = configs['masks']['extension']
+image_extension = configs['images']['extension']
+threshold_mask_value = configs['masks']['threshold_value']
+
+RSML_output_dir = configs['RSML']['output_dir']
+spline_parameters = configs['RSML']['spline']
+
+binarize_mask = configs['masks']['binarize']
+invert_mask = configs['masks']['invert']
+
+#spline_parameters = {
+#                        'tension': 0.5,
+#                        'spacing': 50 
+#                    }
 
 image_name = '1004'
 reference_hist_img_name = '995'
@@ -142,9 +158,12 @@ reference_hist_image = cv.imread(reference_hist_path)
 show_image(img[..., ::-1], dbg_ctx=dbg_ctx_basic)
 if invert_mask:
     mask = cv.bitwise_not(mask)
-    _, mask = cv.threshold(mask, 1, 255, cv.THRESH_BINARY)
-    show_image(mask, dbg_ctx=dbg_ctx_basic)
-    show_image(mask, dbg_ctx=dbg_ctx_post)
+
+if binarize_mask:
+    _, mask = cv.threshold(mask, threshold_mask_value, 255, cv.THRESH_BINARY)
+
+show_image(mask, dbg_ctx=dbg_ctx_basic)
+show_image(mask, dbg_ctx=dbg_ctx_post)
 
 h, w = img.shape[:2]
 
@@ -275,10 +294,7 @@ show_image(pruned_skeleton, dbg_ctx=dbg_ctx_post)
 
 plants = extraction(seeds_pos, pruned_skeleton, dist, orig_img)
 
-spline_parameters = {
-                        'tension': 0.5,
-                        'spacing': 50 
-                    }
+
 
 # Create Plant structure
 rootnav_plants = [ RootNavPlant(idx, 'orzo', p.stem, p.seed_coords) for idx, p in enumerate(plants) ]
@@ -299,12 +315,11 @@ for i, plant in enumerate(plants):
         rootnav_plants[i].roots.append(tmp_root)
     measures['plants'].append(get_measures(i+1, plant, dist))
 
-output_dir = '/home/alebrasi/Videos/rsml_tests'
 
 # Dumps measures to json
-with open(f'{output_dir}/{image_name}.json', 'w', encoding='utf-8') as f:
+with open(f'{RSML_output_dir}/{image_name}.json', 'w', encoding='utf-8') as f:
     json_measures = json.dumps(measures, ensure_ascii=False, indent=4)
     f.write(json_measures)
 
 # Output to RSML
-RSMLWriter.save(image_name, output_dir, rootnav_plants)
+RSMLWriter.save(image_name, RSML_output_dir, rootnav_plants)

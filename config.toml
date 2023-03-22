@@ -1,0 +1,17 @@
+[images]
+dir = '/home/alebrasi/Documents/tesi/Dataset/sessioni_crop/resize'
+extension = 'jpg'
+
+[masks]
+dir = '/home/alebrasi/Documents/tesi/Dataset/sessioni_crop/segmentate_1024'
+extension = 'png'
+binarize = true
+invert = true
+threshold_value = 1   # Value between 1-255
+
+[RSML]
+output_dir = '/home/alebrasi/Videos/rsml_tests'
+
+[RSML.spline]
+tension = 0.5
+spacing = 50
