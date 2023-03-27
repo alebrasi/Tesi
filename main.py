@@ -1,32 +1,27 @@
 import cv2 as cv
-from skimage.morphology import skeletonize, medial_axis, thin
-from skimage.graph import pixel_graph
+from skimage.morphology import medial_axis, thin
 from skimage.exposure import match_histograms
 import numpy as np
 import matplotlib
-import matplotlib.pyplot as plt
-import math
 import argparse
-import sys
 import random
 import json
 import toml
 import os
 
-from preprocess import adjust_gamma, automatic_brightness_and_contrast, clahe_bgr, remove_cc, locate_seed_line
-from utils import find_file, show_image, f, DebugContext
-from path_extraction.prune import prune_skeleton_branches, prune3
+from preprocess import locate_seed_line
+from utils import find_file, show_image, DebugContext
+from path_extraction.prune import prune3
 from graph_test import extraction
 from refine_mask import refine_region_above, refine_region_below, locate_seeds
 
-from graph.plant import Plant, Root
 from rsml.rsmlwriter import RSMLWriter
 from rsml.plants import Plant as RootNavPlant, Root as RootNavRoot
 
 def find_nearest(node, nodes):
     node = np.array(node)
     nodes = np.array(nodes)
-    d = np.linalg.norm(node-nodes, axis = 1)
+    d = np.linalg.norm(node-nodes, axis=1)
     p = np.argmin(d)
 
     return nodes[p]
@@ -85,8 +80,6 @@ random.seed(123)
 
 configs = toml.load('config.toml')
 
-#image_path = '/home/alebrasi/Documents/tesi/Dataset/sessioni_crop/resize'
-#mask_path = '/home/alebrasi/Documents/tesi/Dataset/sessioni_crop/segmentate_1024'
 image_path = configs['images']['dir']
 mask_path = configs['masks']['dir']
 
@@ -149,8 +142,6 @@ reference_hist_path = find_file(image_path, f'{reference_hist_img_name}.{image_e
 
 print(f'Image path: {img_path}')
 print(f'Mask path: {mask_path}')
-
-#img = cv.imread('/home/alebrasi/Documents/tesi/segmentate_prof/Sessione 1/Sessione 1.1/109.bmp')
 
 img = cv.imread(img_path)
 mask = cv.imread(mask_path, cv.COLOR_BGR2GRAY)
@@ -226,7 +217,7 @@ h, w = segmented.shape[:2]
 refined_mask = np.zeros((h, w), dtype=np.uint8)
 
 refined_mask[left_pt[1]:, :] = refine_region_below(region_below, mask_below, dbg_ctx=dbg_ctx_region_below)
-refined_mask[:left_pt[1], :] = refine_region_above(mask_above, dgb_ctx_region_above)
+refined_mask[:left_pt[1], :] = refine_region_above(mask_above)
 
 # Morphological closing inside seeds bounding box
 ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (11, 11))
@@ -236,9 +227,6 @@ for bb in seeds_bb:
     refined_mask[y:y+h, x:x+w] = cv.morphologyEx(tmp, cv.MORPH_CLOSE, ker)
 show_image(refined_mask, dbg_ctx=dbg_ctx_post)
 smoothed_mask = cv.medianBlur(refined_mask, 5)       # Edge smoothing
-
-#ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (3,3))
-#asd = cv.morphologyEx(asd, cv.MORPH_ERODE, ker)
 
 # Filling gaps with area < 30 px
 cnts, _ = cv.findContours(smoothed_mask, cv.RETR_CCOMP, cv.CHAIN_APPROX_SIMPLE)

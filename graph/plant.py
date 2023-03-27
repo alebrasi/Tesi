@@ -2,8 +2,8 @@ import networkx as nx
 import copy
 from graph.root import Root
 
-class Plant:
 
+class Plant:
     G = None
 
     @staticmethod
@@ -57,14 +57,14 @@ class Plant:
             # Finds the root that has the highest non walked neighbor
             # TODO: Provare a fare un sort e guardare quello con angolo di inserimento minore
             root = min(
-                        filter(lambda r: r[1] != None, 
-                                map(lambda r: (r, r.highest_non_walked_node), 
-                                    self._roots)
-                                ), 
-                        key=lambda k: k[1][2][0],   # Order by y coordinate of highest non walked node of the root
-                        default=None)
+                filter(lambda r: r[1] is not None,
+                       map(lambda r: (r, r.highest_non_walked_node),
+                           self._roots)
+                       ),
+                key=lambda k: k[1][2][0],  # Order by y coordinate of highest non walked node of the root
+                default=None)
 
-            if root == None:
+            if root is None:
                 return False
 
             root, highest_node = root
@@ -73,9 +73,6 @@ class Plant:
             print('plant: ', node)
 
             new_root = root.copy_until_node(node, neighbor)
-        else:
-            #new_root = self._init_new_root_starting_from_seed()
-            pass
 
         self._roots.append(new_root)
         self._current_root = new_root
@@ -84,11 +81,11 @@ class Plant:
 
     def compute(self):
         if self._is_finished:
-            return False 
+            return False
 
         if not self._init_new_root():
             self._is_finished = True
-            return False 
+            return False
 
         while self._current_root.explore():
             pass
@@ -98,4 +95,3 @@ class Plant:
     @property
     def roots(self):
         return copy.deepcopy(self._roots)
-        

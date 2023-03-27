@@ -1,6 +1,7 @@
 import numpy as np
 from path_extraction.vector_utils import Vector
 
+
 class Path:
     """
     Constructs a Path objects
@@ -10,6 +11,7 @@ class Path:
         q (float): The y intercept
         res_err (float): The residual error
     """
+
     def __init__(self, points, m=0, q=0, res_err=-1):
         self._points = points
         self._m = m
@@ -40,7 +42,7 @@ class Path:
         """
         Gets the coefficients of the path.
         """
-        return self._m, self._q 
+        return self._m, self._q
 
     @property
     def res_err(self):
@@ -95,7 +97,7 @@ class Path:
                 If the mean residual value is > max_residual_err, the latest point is removed
                 and the current line values and relative set of points are added to the overall list
                 """
-                if len(res) > 0 and (res/self.lenght) > max_res_err:
+                if len(res) > 0 and (res / self.lenght) > max_res_err:
                     last = tmp_line_path.pop()
                     m, q, _ = self.__lstsq_from_path(tmp_line_path)
                     lines.append(Path(tmp_line_path, m, q))

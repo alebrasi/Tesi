@@ -2,21 +2,22 @@ import cv2 as cv
 import numpy as np
 from utils import show_image
 import math
-from skimage.morphology import skeletonize
-import matplotlib.pyplot as plt
+
 
 def adjust_gamma(img, gamma=1.0):
-	invGamma = 1.0 / gamma
-	table = np.array([((i / 255.0) ** invGamma) * 255
-		for i in np.arange(0, 256)]).astype(np.uint8)
+    invGamma = 1.0 / gamma
+    table = np.array([((i / 255.0) ** invGamma) * 255
+                      for i in np.arange(0, 256)]).astype(np.uint8)
 
-	return cv.LUT(img, table)
+    return cv.LUT(img, table)
 
-def f(img, alpha=2.0, beta=-200):
-	alpha = np.array([alpha], dtype=np.uint16)
-	
-	img = np.clip((img * alpha) + beta, 0, 255).astype(np.uint8)
-	return img
+
+def f(img, alpha=2.0, beta=-200.0):
+    alpha = np.array([alpha], dtype=np.uint16)
+
+    img = np.clip((img * alpha) + beta, 0, 255).astype(np.uint8)
+    return img
+
 
 def remove_cc(img, area_thr, connectivity=8, algorithm=cv.CCL_DEFAULT):
     _, labels, stats, _ = cv.connectedComponentsWithStatsWithAlgorithm(img, connectivity, cv.CV_16U, algorithm)
@@ -29,6 +30,7 @@ def remove_cc(img, area_thr, connectivity=8, algorithm=cv.CCL_DEFAULT):
 
     return labels.astype(np.uint8)
 
+
 def clahe_bgr(img, clip, grid_size):
     # TODO: vedere se tenere LAB o cambiare in HLS
     hls = cv.cvtColor(img, cv.COLOR_BGR2LAB)
@@ -40,8 +42,6 @@ def clahe_bgr(img, clip, grid_size):
 
     return l
 
-    #return cv.cvtColor(cv.merge([h, l, s]), cv.COLOR_HLS2BGR)
-
 # Automatic brightness and contrast optimization with optional histogram clipping
 # https://stackoverflow.com/questions/56905592/automatic-contrast-and-brightness-adjustment-of-a-color-photo-of-a-sheet-of-pape
 def automatic_brightness_and_contrast(image, mask, clip_hist_percent=1):
@@ -51,39 +51,39 @@ def automatic_brightness_and_contrast(image, mask, clip_hist_percent=1):
     mean, std = cv.meanStdDev(gray[mask == 255])
     print(f'Mean: {mean}, Std: {std[0][0]}')
 
-    #hist = cv.calcHist([gray], [0], mask, [256], [0, 256])
-    #plt.plot(hist)
-    #plt.show()
+    # hist = cv.calcHist([gray], [0], mask, [256], [0, 256])
+    # plt.plot(hist)
+    # plt.show()
 
     # Calculate grayscale histogram
-    hist = cv.calcHist([gray],[0],mask,[256],[0,256])
+    hist = cv.calcHist([gray], [0], mask, [256], [0, 256])
     hist_size = len(hist)
-    
+
     # Calculate cumulative distribution from the histogram
     accumulator = []
     accumulator.append(float(hist[0]))
     for index in range(1, hist_size):
-        accumulator.append(accumulator[index -1] + float(hist[index]))
-    
+        accumulator.append(accumulator[index - 1] + float(hist[index]))
+
     # Locate points to clip
     maximum = accumulator[-1]
-    clip_hist_percent *= (maximum/100.0)
+    clip_hist_percent *= (maximum / 100.0)
     clip_hist_percent /= 2.0
-    
+
     # Locate left cut
-    minimum_gray = 0            # TODO: Provare con 0 o 1
+    minimum_gray = 0  # TODO: Provare con 0 o 1
     while accumulator[minimum_gray] < clip_hist_percent:
         minimum_gray += 1
-    
+
     # Locate right cut
-    maximum_gray = hist_size -1
+    maximum_gray = hist_size - 1
     while accumulator[maximum_gray] >= (maximum - clip_hist_percent):
         maximum_gray -= 1
-    
+
     # Calculate alpha and beta values
     alpha = 255 / (maximum_gray - minimum_gray)
     beta = -minimum_gray * alpha
-    
+
     """
     # Calculate new histogram with desired range and show histogram 
     new_hist = cv.calcHist([gray],[0],None,[256],[minimum_gray,maximum_gray])
@@ -96,8 +96,8 @@ def automatic_brightness_and_contrast(image, mask, clip_hist_percent=1):
 
     auto_result = f(image, alpha=alpha, beta=beta)
 
-    #auto_result = cv.convertScaleAbs(image, alpha=alpha, beta=beta)
-    return (auto_result, alpha, beta)
+    return auto_result, alpha, beta
+
 
 def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10, dbg_ctx=None):
     """
@@ -132,17 +132,15 @@ def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10, dbg_ctx=
         offset_x, offset_y = tl_x, tl_y
     show_image(img, dbg_ctx=dbg_ctx)
     img = cv.GaussianBlur(img, (5, 5), 0)
-    thresholded_img = cv.adaptiveThreshold(img, 255, cv.ADAPTIVE_THRESH_MEAN_C, 
-                                            cv.THRESH_BINARY, 13, -2)
+    thresholded_img = cv.adaptiveThreshold(img, 255, cv.ADAPTIVE_THRESH_MEAN_C,
+                                           cv.THRESH_BINARY, 13, -2)
     show_image(thresholded_img, dbg_ctx=dbg_ctx)
     # Find horizontal lines with width >= 20px and height = 1px
     horizontal_ker = cv.getStructuringElement(cv.MORPH_RECT, (20, 1))
     horizontal_lines = cv.morphologyEx(thresholded_img, cv.MORPH_OPEN, horizontal_ker)
-    #vertical_ker = cv.getStructuringElement(cv.MORPH_RECT, (1, 50))
-    #vertical_lines = cv.morphologyEx(img, cv.MORPH_OPEN, vertical_ker)
 
     show_image(horizontal_lines, dbg_ctx=dbg_ctx)
-    
+
     lines = cv.HoughLinesWithAccumulator(horizontal_lines, 1, np.pi / 180, 50, None, 0, 0)
     # obtaining the line with the maximum votes, even if the Hough transform should return 
     # the results in descending order by accumulator value
@@ -157,103 +155,31 @@ def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10, dbg_ctx=
         b = math.sin(theta)
         x0 = a * rho
         y0 = b * rho
-        pt1 = (int(x0 + 2000*(-b)), int(y0 + 2000*(a)))
-        pt2 = (int(x0 - 2000*(-b)), int(y0 - 2000*(a)))
+        pt1 = (int(x0 + 2000 * (-b)), int(y0 + 2000 * (a)))
+        pt2 = (int(x0 - 2000 * (-b)), int(y0 - 2000 * (a)))
         cv.line(cdst, pt1, pt2, (0, 255, 0), 2, cv.LINE_AA)
         show_image(cdst)
-    
+
     h, w = horizontal_lines.shape[:2]
 
-    rot_angle = math.degrees(theta)-90.0
-    #rot_angle = calc_rot_angle(theta, rho, 0, w-1)
+    rot_angle = math.degrees(theta) - 90.0
     print(rot_angle)
 
-    M = cv.getRotationMatrix2D((h//2, w//2), rot_angle, 1.0)
+    M = cv.getRotationMatrix2D((h // 2, w // 2), rot_angle, 1.0)
 
     roi_offset_y, _ = rough_location[0]
 
-    #y = int(rho*math.cos(math.radians(rot_angle))) + roi_offset_y + seed_line_offset_px 
-    #y = int(rho/math.sin(theta)) + roi_offset_y + seed_line_offset_px 
     y = int(rho) + roi_offset_y + seed_line_offset_px
     print(theta, " ", rho, " ", y, " ", rot_angle)
-    
+
     pt1 = (0, y)
-    pt2 = (w-1, y)
-    
+    pt2 = (w - 1, y)
+
     return M, pt1, pt2
 
-    """ 
-    _, labels, stats, _ =  cv.connectedComponentsWithStatsWithAlgorithm(horizontal_lines, 8, 
-                                                                        cv.CV_16U, cv.CCL_DEFAULT)
-
-    show_image(labels, cmap='magma', dbg_ctx=dbg_ctx)
-    # Removing thick or short (horizontal) lines
-    for label, stat in enumerate(stats):
-        w = stat[cv.CC_STAT_WIDTH]
-        h = stat[cv.CC_STAT_HEIGHT]
-        if w > 45:
-            continue
-        if w < 35 or h > 4:
-            labels[labels == label] = 0
-
-    labels[labels > 0] = 255
-    labels = labels.astype(np.uint8)
-    show_image(labels, dbg_ctx=dbg_ctx)
-
-    #show_image(cv.bitwise_and(orig_img, orig_img, mask=labels))
-
-    horizontal_lines = labels
-    
-    h, w = horizontal_lines.shape[:2]
-
-    contours, hierarchy = cv.findContours(horizontal_lines, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
-    cnt = contours[0]
-    rows,cols = horizontal_lines.shape[:2]
-    # Find the line that fits the set of horizontal lines
-    [vx,vy,x,y] = cv.fitLine(cnt, cv.DIST_L2,0,0.01,0.01)
-    alpha = math.degrees(math.atan(vy/vx))
-    print(f'{alpha}°')
-    #x = x + offset_x
-    #y = y + offset_y
-    q = y - ((vy/vx)*x) 
-    m = vy/vx
-
-    left_x = 1 
-    right_x = w-1
-    # y = mx + q
-    left_y = int((m * left_x) + q) + offset_y
-    right_y = int((m * right_x) + q) + offset_y
-
-    #print(f'l_x{}')
-
-    cv.line(img, (left_x, left_y), (right_x, right_y),(0, 255, 0), 1)
-    show_image(img, dbg_ctx=dbg_ctx)
-
-    # Finding the rotation matrix
-    h, w = orig_img.shape[:2]
-    M = cv.getRotationMatrix2D((h//2, w//2), alpha, 1.0)
-    #img = cv.warpAffine(orig_img, M, (h, w))
-    #img1 = img.copy()
-
-    #show_image(img1)
-
-    left_pt = np.array([left_x, left_y, 1])
-    right_pt = np.array([right_x, right_y, 1])
-
-    left_pt = np.int16(M@left_pt.T)
-    right_pt = np.int16(M@right_pt.T)
-
-    left_pt_x, new_y = left_pt[:2]
-    new_y = new_y + seed_line_offset_px
-
-    left_pt = (left_pt[0], new_y)
-    right_pt = (right_pt[0], new_y)
-
-    return M, left_pt, right_pt
-    """
 
 def calc_rot_angle(theta, rho, x1, x2):
-    calc = lambda rho, theta, x: (rho/math.sin(theta)) - (math.cos(theta)/math.sin(theta))*x
+    calc = lambda rho, theta, x: (rho / math.sin(theta)) - (math.cos(theta) / math.sin(theta)) * x
     y1 = calc(rho, theta, x1)
     y2 = calc(rho, theta, x2)
-    return math.degrees(math.atan2(y2-y1, (x2-x1)))
+    return math.degrees(math.atan2(y2 - y1, (x2 - x1)))
