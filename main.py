@@ -18,13 +18,15 @@ from refine_mask import refine_region_above, refine_region_below, locate_seeds
 from rsml.rsmlwriter import RSMLWriter
 from rsml.plants import Plant as RootNavPlant, Root as RootNavRoot
 
+
 def find_nearest(node, nodes):
     node = np.array(node)
     nodes = np.array(nodes)
-    d = np.linalg.norm(node-nodes, axis=1)
+    d = np.linalg.norm(node - nodes, axis=1)
     p = np.argmin(d)
 
     return nodes[p]
+
 
 def get_measures(plant_id, plant, distances):
     # Longest root
@@ -52,16 +54,16 @@ def get_measures(plant_id, plant, distances):
     for i, r in enumerate(roots):
         points = r.points
         tmp = list(map(lambda p: distances[p], points))
-        mean_thickness = sum(tmp)/len(tmp)
-        measures['roots_thickness'][i+1] = round(mean_thickness, 2)
+        mean_thickness = sum(tmp) / len(tmp)
+        measures['roots_thickness'][i + 1] = round(mean_thickness, 2)
 
-        print(f'Root {i+1}  mean thickness: ', mean_thickness)
+        print(f'Root {i + 1}  mean thickness: ', mean_thickness)
         for i, point in enumerate(points):
             roots_thickness.append(tmp[i])
             y, x = point
             all_points.add((x, y))
 
-    avg_roots_thickness = sum(roots_thickness)/len(roots_thickness)
+    avg_roots_thickness = sum(roots_thickness) / len(roots_thickness)
     print('Average roots thickness: ', avg_roots_thickness)
     measures['average_roots_thickness'] = round(avg_roots_thickness, 2)
 
@@ -93,7 +95,7 @@ spline_parameters = configs['RSML']['spline']
 binarize_mask = configs['masks']['binarize']
 invert_mask = configs['masks']['invert']
 
-#spline_parameters = {
+# spline_parameters = {
 #                        'tension': 0.5,
 #                        'spacing': 50 
 #                    }
@@ -118,7 +120,7 @@ d_region_above = False
 d_locate_seeds = False
 d_basic = False
 
-#"""
+# """
 args = parser.parse_args()
 no_extraction = args.no_extraction
 image_name = args.image_name
@@ -127,7 +129,7 @@ d_post_process = args.d_post_process
 d_region_below = args.d_region_below
 d_locate_seeds = args.d_locate_seeds
 d_basic = args.d_basic
-#"""
+# """
 
 dbg_ctx_seed_line = DebugContext('seed_line', d_seed_line)
 dbg_ctx_post = DebugContext('post_process', d_post_process)
@@ -159,7 +161,7 @@ show_image(mask, dbg_ctx=dbg_ctx_post)
 
 h, w = img.shape[:2]
 
-seed_line_roi = [[148, 0], [300, w-1]]
+seed_line_roi = [[148, 0], [300, w - 1]]
 
 M, left_pt, right_pt = locate_seed_line(img, seed_line_roi, 5, dbg_ctx=dbg_ctx_seed_line)
 
@@ -223,10 +225,10 @@ refined_mask[:left_pt[1], :] = refine_region_above(mask_above)
 ker = cv.getStructuringElement(cv.MORPH_ELLIPSE, (11, 11))
 for bb in seeds_bb:
     x, y, w, h = bb
-    tmp = refined_mask[y:y+h, x:x+w]
-    refined_mask[y:y+h, x:x+w] = cv.morphologyEx(tmp, cv.MORPH_CLOSE, ker)
+    tmp = refined_mask[y:y + h, x:x + w]
+    refined_mask[y:y + h, x:x + w] = cv.morphologyEx(tmp, cv.MORPH_CLOSE, ker)
 show_image(refined_mask, dbg_ctx=dbg_ctx_post)
-smoothed_mask = cv.medianBlur(refined_mask, 5)       # Edge smoothing
+smoothed_mask = cv.medianBlur(refined_mask, 5)  # Edge smoothing
 
 # Filling gaps with area < 30 px
 cnts, _ = cv.findContours(smoothed_mask, cv.RETR_CCOMP, cv.CHAIN_APPROX_SIMPLE)
@@ -235,7 +237,8 @@ for i, cnt in enumerate(cnts):
         cv.drawContours(smoothed_mask, cnts, i, 255, -1)
 
 show_image([(refined_mask, 'maschera rifinita'), (smoothed_mask, 'bordi smussati')], dbg_ctx=dbg_ctx_post)
-show_image((cv.bitwise_and(orig_img, orig_img, mask=smoothed_mask)[..., ::-1], 'risultato segmentazione'), dbg_ctx=dbg_ctx_post)
+show_image((cv.bitwise_and(orig_img, orig_img, mask=smoothed_mask)[..., ::-1], 'risultato segmentazione'),
+           dbg_ctx=dbg_ctx_post)
 show_image((smoothed_mask, "bordi smussati"), dbg_ctx=dbg_ctx_post)
 cv.imwrite('458R_mask_demo.png', smoothed_mask)
 refined_mask = smoothed_mask
@@ -267,15 +270,15 @@ seeds_pos = []
 for bb in seeds_bb:
     x, y, w, h = bb
 
-    centroid = (y+h//2, x+w//2)
-    arr = pruned_skeleton[y:y+h, x:x+w]
+    centroid = (y + h // 2, x + w // 2)
+    arr = pruned_skeleton[y:y + h, x:x + w]
     nodes = np.argwhere(arr) + [y, x]
     if len(nodes) > 0:
         nearest = find_nearest(centroid, nodes)
-        cv.rectangle(tmp, bb, (0,255,0), 1)
+        cv.rectangle(tmp, bb, (0, 255, 0), 1)
         a, b = nearest
-        tmp[centroid[0], centroid[1], ...] = [0,255,255]
-        tmp[a, b, ...] = [0, 0,255]
+        tmp[centroid[0], centroid[1], ...] = [0, 255, 255]
+        tmp[a, b, ...] = [0, 0, 255]
         seeds_pos.append((a, b))
 show_image(tmp[:, ::-1, ::-1], dbg_ctx=dbg_ctx_post)
 print(seeds_pos)
@@ -283,10 +286,8 @@ show_image(pruned_skeleton, dbg_ctx=dbg_ctx_post)
 
 plants = extraction(seeds_pos, pruned_skeleton, dist, orig_img)
 
-
-
 # Create Plant structure
-rootnav_plants = [ RootNavPlant(idx, 'orzo', p.stem, p.seed_coords) for idx, p in enumerate(plants) ]
+rootnav_plants = [RootNavPlant(idx, 'orzo', p.stem, p.seed_coords) for idx, p in enumerate(plants)]
 
 measures = {}
 measures['plants'] = []
@@ -294,16 +295,15 @@ measures['plants'] = []
 for i, plant in enumerate(plants):
     for root in plant.roots:
         points = root.points
-        diameters = [ dist[p] for p in points ]
-        points = [ (x, y) for y, x in points ]
-        tmp_root = RootNavRoot(points, 
-                                diameters, 
-                                spline_tension=spline_parameters['tension'], 
-                                spline_knot_spacing=spline_parameters['spacing']
-                              )
+        diameters = [dist[p] for p in points]
+        points = [(x, y) for y, x in points]
+        tmp_root = RootNavRoot(points,
+                               diameters,
+                               spline_tension=spline_parameters['tension'],
+                               spline_knot_spacing=spline_parameters['spacing']
+                               )
         rootnav_plants[i].roots.append(tmp_root)
-    measures['plants'].append(get_measures(i+1, plant, dist))
-
+    measures['plants'].append(get_measures(i + 1, plant, dist))
 
 # Dumps measures to json
 measures_output_dir = os.path.join(RSML_output_dir, f'{image_name}.json')

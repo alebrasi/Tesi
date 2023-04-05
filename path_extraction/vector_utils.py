@@ -1,6 +1,7 @@
 import numpy as np
 import math
 
+
 class Vector:
     def __init__(self, p1, p2):
         """
@@ -65,4 +66,3 @@ class Vector:
         Returns the input vector with inverted direction
         """
         return Vector(v._p2, v._p1)
-

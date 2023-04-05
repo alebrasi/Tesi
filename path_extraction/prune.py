@@ -1,27 +1,33 @@
 import queue
 import numpy as np
 import cv2 as cv
-from utils import show_image
 from path_extraction.path import Path
 from enum import Enum
+
 
 class PointType(Enum):
     TIP = 0,
     NODE = 1,
     SOURCE = 2
+
+
 # TODO: Spostare tutto nella classe RootsExtraction
 
 # Moore neighbor
 def root_neighbors(p):
     y, x = p
-    return [(y-1, x-1), (y-1, x), (y-1, x+1), (y, x-1), (y, x), (y, x+1), (y+1, x-1), (y+1, x), (y+1, x+1)]
+    return [(y - 1, x - 1), (y - 1, x), (y - 1, x + 1), (y, x - 1), (y, x), (y, x + 1), (y + 1, x - 1), (y + 1, x),
+            (y + 1, x + 1)]
+
 
 def seed_neighbors(p):
     y, x = p
-    return [(y, x-1), (y, x+1), (y+1, x-1), (y+1, x), (y+1, x+1)]
+    return [(y, x - 1), (y, x + 1), (y + 1, x - 1), (y + 1, x), (y + 1, x + 1)]
+
 
 def idx(y, x, s=3):
     return (y * s) + x
+
 
 # TODO: Fare refactor
 def valid_neighbors(p, neighbor_func, skel, return_idx=False):
@@ -30,13 +36,17 @@ def valid_neighbors(p, neighbor_func, skel, return_idx=False):
 
     Parameters:
         p (tuple): The point
+        neighbor_func: Neighbouring function
+        skel: The skeleton
+        return_idx: Whether to return the index of the points
     """
-    h, w = skel.shape[:2]
-    is_valid = lambda p: p[0] < h and p[0] >= 0 and p[1] < w and p[1] >= 0
+    # Check if the point is the bounds of the skeleton
+    def is_valid(p, h, w): return p[0] < h and p[0] >= 0 and p[1] < w and p[1] >= 0
 
+    h, w = skel.shape[:2]
     n = neighbor_func(p)
-    #valid = [ skel[i] for i in n ]
-    valid = [ skel[i] if is_valid(i) else False for i in n ]
+
+    valid = [skel[i] if is_valid(i, h, w) else False for i in n]
     valid[idx(1, 1)] = False
 
     if valid[idx(0, 1)]:
@@ -47,11 +57,12 @@ def valid_neighbors(p, neighbor_func, skel, return_idx=False):
         valid[idx(2, 0)] = valid[idx(2, 2)] = False
     if valid[idx(1, 2)]:
         valid[idx(0, 2)] = valid[idx(2, 2)] = False
-    #return [ i for i in neighbor_func(p) if skel[i] ]
+
     if return_idx:
-        return [ (i, n1) for i, n1 in enumerate(n) if valid[i] ]
-        
-    return [ n1 for i, n1 in enumerate(n) if valid[i] ]
+        return [(i, n1) for i, n1 in enumerate(n) if valid[i]]
+
+    return [n1 for i, n1 in enumerate(n) if valid[i]]
+
 
 def is_tip(n, skel):
     """
@@ -62,6 +73,7 @@ def is_tip(n, skel):
         skel (numpy.ndarray): Numpy boolean matrix containing the skeleton of the plants
     """
     return len(valid_neighbors(n, root_neighbors, skel)) == 1
+
 
 def prune_skeleton_branches(seeds, skel, branch_threshold_len=6):
     """
@@ -97,8 +109,8 @@ def prune_skeleton_branches(seeds, skel, branch_threshold_len=6):
         # Pruning
         while True:
             n = valid_neighbors(cur_node, root_neighbors, skel)
-            n = [ i for i in n if i not in visited ]
-           
+            n = [i for i in n if i not in visited]
+
             visited.add(cur_node)
 
             # Pixel is an element of the root when has only a valid neighbour
@@ -122,7 +134,7 @@ def prune_skeleton_branches(seeds, skel, branch_threshold_len=6):
                 else:
                     break
                 continue
-        
+
             # Pixel is a node
             cur_path = []
             for node in n:
@@ -142,19 +154,19 @@ def prune2(skel, thr):
     orig = s.copy()
     kers = []
     kers.append(np.array([[0, -1, -1],
-                          [ 1, 1, -1],
+                          [1, 1, -1],
                           [0, -1, -1]]))
-    
+
     kers.append(np.array([[0, 1, 0],
-                          [ -1, 1,  -1],
-                          [ -1, -1,  -1]]))
+                          [-1, 1, -1],
+                          [-1, -1, -1]]))
 
     kers.append(np.array([[-1, -1, 0],
-                          [-1, 1,  1],
+                          [-1, 1, 1],
                           [-1, -1, 0]]))
 
-    kers.append(np.array([[ -1, -1,  -1],
-                          [ -1, 1,  -1],
+    kers.append(np.array([[-1, -1, -1],
+                          [-1, 1, -1],
                           [0, 1, 0]]))
 
     kers.append(np.array([[1, -1, -1],
@@ -193,6 +205,7 @@ def prune2(skel, thr):
     s += endpoints
     return s
 
+
 def walk_to_node(skel, sender_p, start_p):
     # TODO: Cambiare il nome alla funzione
     """
@@ -207,7 +220,7 @@ def walk_to_node(skel, sender_p, start_p):
         path: A list containing the points walked
     """
 
-    #global skel
+    # global skel
 
     prev_point = sender_p
     cur_point = start_p
@@ -216,7 +229,7 @@ def walk_to_node(skel, sender_p, start_p):
 
     while True:
         n = valid_neighbors(cur_point, root_neighbors, skel)
-        #n.remove(prev_point)
+        # n.remove(prev_point)
         if prev_point in n: n.remove(prev_point)
 
         path.append(cur_point)
@@ -234,6 +247,7 @@ def walk_to_node(skel, sender_p, start_p):
 
     return res, Path(path)
 
+
 def get_nodes(skel):
     kers = list()
     skel = skel.copy().astype(np.uint8)
@@ -243,34 +257,34 @@ def get_nodes(skel):
     Kernels took from:
     https://stackoverflow.com/questions/43037692/how-to-find-branch-point-from-binary-skeletonize-image
     """
-    kers.append(np.array([[0, 1, 0], 
-                          [1, 1, 1], 
+    kers.append(np.array([[0, 1, 0],
+                          [1, 1, 1],
                           [0, 0, 0]]))
 
-    kers.append(np.array([[1, 0, 1], 
-                          [0, 1, 0], 
+    kers.append(np.array([[1, 0, 1],
+                          [0, 1, 0],
                           [1, 0, 0]]))
 
-    kers.append(np.array([[1, 0, 1], 
-                          [0, 1, 0], 
+    kers.append(np.array([[1, 0, 1],
+                          [0, 1, 0],
                           [0, 1, 0]]))
 
-    kers.append(np.array([[0, 1, 0], 
-                          [1, 1, 0], 
+    kers.append(np.array([[0, 1, 0],
+                          [1, 1, 0],
                           [0, 0, 1]]))
 
-    kers.append(np.array([[0, 0, 1], 
-                          [1, 1, 1], 
+    kers.append(np.array([[0, 0, 1],
+                          [1, 1, 1],
                           [0, 1, 0]]))
 
     kers = [np.rot90(kers[i], k=j) for i in range(5) for j in range(4)]
 
-    kers.append(np.array([[0, 1, 0], 
-                          [1, 1, 1], 
+    kers.append(np.array([[0, 1, 0],
+                          [1, 1, 1],
                           [0, 1, 0]]))
-    
-    kers.append(np.array([[1, 0, 1], 
-                          [0, 1, 0], 
+
+    kers.append(np.array([[1, 0, 1],
+                          [0, 1, 0],
                           [1, 0, 1]]))
 
     for ker in kers:
@@ -302,17 +316,18 @@ def get_nodes(skel):
             - '°' indicate the correct identified nodes
             - 'x' indicate the wrong identified node
         """
-        nodes += cv.morphologyEx(skel, 
-                                 cv.MORPH_HITMISS, 
-                                 ker, 
+        nodes += cv.morphologyEx(skel,
+                                 cv.MORPH_HITMISS,
+                                 ker,
                                  borderType=cv.BORDER_CONSTANT,
                                  borderValue=0
-                                )
-    
+                                 )
+
     # Grab coordinates of the nodes
     nodes_idx = np.argwhere(nodes.astype(bool))
 
     return nodes_idx
+
 
 def prune3(skel, branch_threshold, work_on_copy=True):
     """
@@ -328,13 +343,13 @@ def prune3(skel, branch_threshold, work_on_copy=True):
         pruned = skel.copy()
 
     nodes_idx = get_nodes(skel)
-    
+
     for node in nodes_idx:
         node = tuple(node)
         neighbors = valid_neighbors(node, root_neighbors, pruned)
         for n in neighbors:
             endpoint_type, path = walk_to_node(pruned, node, n)
-            points = path.points[1:]        # Skips the first point, which is the node
+            points = path.points[1:]  # Skips the first point, which is the node
             if endpoint_type == PointType.TIP and len(points) <= branch_threshold:
                 for point in points:
                     pruned[point] = False

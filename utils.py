@@ -60,9 +60,9 @@ class DebugContext:
 
 
 def show_image(imgs, cmap='gray', cols=2, dbg_ctx=None):
-    if dbg_ctx is not None:
-        if not dbg_ctx.is_active:
-            return
+    #if dbg_ctx is not None:
+    if dbg_ctx is None or not dbg_ctx.is_active:
+        return
 
     n_imgs = len(imgs)
     rows = (n_imgs // cols) + 1
