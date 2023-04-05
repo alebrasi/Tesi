@@ -189,7 +189,7 @@ def refine_gui(img, refined_mask):
 
 
 if __name__ == '__main__':
-    img_num = '995R'
+    img_num = '1004R'
     reference_img_num = '995'
 
     img_path = find_file('/home/alebrasi/Documents/tesi/Dataset/sessioni_crop/resize', f'{img_num}.jpg')
@@ -204,15 +204,14 @@ if __name__ == '__main__':
     _, mask, refined_mask = refine(img, mask, reference_img)
 
     refined_mask2 = refine_gui(img, refined_mask)
-    # refined_mask2 = refined_mask
 
     res, markers = apply_watershed(img, refined_mask2, mask)
     watersheded_mask = markers.astype(np.uint8)
     _, watersheded_mask = cv.threshold(watersheded_mask, 1, 255, cv.THRESH_BINARY)
     smoothed_mask = cv.medianBlur(watersheded_mask, 5)  # Edge smoothing
 
-    show_image(cv.subtract(refined_mask2, smoothed_mask), dbg_ctx=DebugContext(''))
+    diff = cv.subtract(refined_mask2, smoothed_mask)
 
     show_image([(img[..., ::-1], 'Immagine'), (mask, 'Maschera originale'),
                 (refined_mask, 'Raffinata'), (refined_mask2, 'Annotazioni aggiuntive'),
-                (smoothed_mask, 'Watershed con smoothing')], dbg_ctx=DebugContext(''), cols=3)
+                (smoothed_mask, 'Watershed con smoothing'), (diff, 'Differenza watershed-maschera annotata')], dbg_ctx=DebugContext(''), cols=3)
