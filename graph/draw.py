@@ -11,7 +11,7 @@ def draw_graph(G,
                invert_xaxis=True,
                node_size=100, rad=0.1):
 
-    reverse_coords = lambda t: t[::-1]
+    def reverse_coords(t): return t[::-1]
 
     # Reverses the coordinates of the point (x, y) -> (y, x)
     pos = dict(map(lambda n: (n[0], reverse_coords(n[1])),

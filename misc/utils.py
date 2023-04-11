@@ -83,3 +83,14 @@ def show_image(imgs, cmap='gray', cols=2, dbg_ctx=None):
 
     plt.subplots_adjust(bottom=0.0, right=0.679, left=0.364, top=0.871, wspace=0.0, hspace=0.052)
     plt.show()
+
+
+def boolean_matrix_to_rgb(m):
+    m = m.copy().astype(np.uint8)
+    m[m == 1] = 255
+    return cv.cvtColor(m, cv.COLOR_GRAY2BGR)
+
+
+def hsv2bgr(h, s=255, v=255):
+    c = np.uint8([[[h, s, v]]])
+    return cv.cvtColor(c, cv.COLOR_HSV2BGR).reshape(1, 1, 3)[0][0]
