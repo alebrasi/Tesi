@@ -1,63 +1,10 @@
-from path_extraction.prune import valid_neighbors, root_neighbors, is_tip, get_nodes
-from path_extraction.path import Path
-from path_extraction.vector_utils import Vector
-
-from collections import namedtuple
-from enum import Enum
-from queue import Queue
+from misc.skeleton_utils import valid_neighbors, is_tip, get_nodes, PointType, walk_to_node
+from misc.path import Path
+from misc.vector import Vector
 
 import networkx as nx
 
-
-class PointType(Enum):
-    TIP = 0,
-    NODE = 1,
-    SOURCE = 2
-
-
 skel = None
-WalkedPath = namedtuple('WalkedPath', ['point_type', 'path'])
-
-
-def walk_to_node(sender_p, start_p):
-    # TODO: Cambiare il nome alla funzione
-    """
-    Returns a list of points (path) that are between the point `p` and the first 
-    available node or tip
-
-    Parameteres:
-        sender_p (tuple): The `father` of the starting point
-        start_p (tuple): The starting point, which is the `son` (or neighbor) of `sender_p` 
-
-    Returns:
-        path: A list containing the points walked
-    """
-
-    global skel
-
-    prev_point = sender_p
-    cur_point = start_p
-    path = [sender_p]
-    res = PointType.NODE
-
-    while True:
-        n = valid_neighbors(cur_point, root_neighbors, skel)
-        if prev_point in n: n.remove(prev_point)
-
-        path.append(cur_point)
-
-        # The point is a node
-        if len(n) > 1:
-            break
-
-        if is_tip(cur_point, skel):
-            res = PointType.TIP
-            break
-
-        prev_point = cur_point
-        cur_point = n[0]
-
-    return WalkedPath(res, Path(path))
 
 
 def add_nodes_and_edges(G, source_node, walked_path, max_res_err, min_points):
@@ -115,14 +62,14 @@ def find_forking_node(seed, skel):
     seed (tuple): point, in (y, x) format, that describes where the seed is located
     skel (numpy.ndarray): boolean matrix containing the skeletonized image
     """
-    neighbors = valid_neighbors(seed, root_neighbors, skel)
+    neighbors = valid_neighbors(seed, skel)
 
     lowest_y = float('-inf')
     lowest_point = None
 
     for n in neighbors:
-        _, path = walk_to_node(seed, n)
-        # The y axis grows going down
+        _, path = walk_to_node(skel, seed, n)
+        # The y-axis grows going down
         lowest_y_p = max(path.points,
                          key=lambda p: float(p[0])  # key = y coordinate of point
                          )[0]  # grabs only the y coordinate
@@ -157,7 +104,6 @@ def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_ls
     """
 
     global skel
-    queue = Queue()
     G = nx.DiGraph()
     visited_neighbors = set()
 
@@ -166,13 +112,12 @@ def create_graph(seeds, skeleton, distances, max_residual_err=1.0, min_points_ls
     nodes_idx = get_nodes(skel)
 
     for node in nodes_idx:
-        y, x = node
         node = tuple(node)
-        neighbors = valid_neighbors(node, root_neighbors, skel)
+        neighbors = valid_neighbors(node, skel)
         neighbors = [n for n in neighbors if n not in visited_neighbors]
 
         for n in neighbors:
-            endpoint_type, path = walk_to_node(node, n)
+            endpoint_type, path = walk_to_node(skel, node, n)
             points = path.points[1:]  # Skips the first point, which is the node
             visited_neighbors.add(path.penultimate_point)
             add_nodes_and_edges(G, node, path, max_residual_err, min_points_lstsq)

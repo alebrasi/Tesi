@@ -1,8 +1,9 @@
 import math
 
-from graph.graph_creation import PointType
+from graph.create import PointType
 
-flat_map = lambda f, xs: (y for ys in xs for y in f(ys))
+
+def flat_map(f, xs): return (y for ys in xs for y in f(ys))
 
 
 class Root:

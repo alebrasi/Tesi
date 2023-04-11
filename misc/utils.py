@@ -18,26 +18,6 @@ def find_file(relative_dir, file_name):
     return ""
 
 
-def auto_canny(image, mask, sigma=0.33):
-    mask1 = mask == 255
-    # compute the median of the single channel pixel intensities
-    v = np.median(image[mask1])
-    # apply automatic Canny edge detection using the computed median
-    lower = int(max(0, (1.0 - sigma) * v))
-    upper = int(min(255, (1.0 + sigma) * v))
-    edged = cv.Canny(image, lower, upper)
-    # return the edged image
-    return edged
-
-
-def adjust_gamma(img, gamma=1.0):
-    invGamma = 1.0 / gamma
-    table = np.array([((i / 255.0) ** invGamma) * 255
-                      for i in np.arange(0, 256)]).astype(np.uint8)
-
-    return cv.LUT(img, table)
-
-
 def f(img, alpha=2.0, beta=-200):
     alpha = np.array([alpha], dtype=np.uint16)
 
@@ -60,7 +40,7 @@ class DebugContext:
 
 
 def show_image(imgs, cmap='gray', cols=2, dbg_ctx=None):
-    #if dbg_ctx is not None:
+    # if dbg_ctx is not None:
     if dbg_ctx is None or not dbg_ctx.is_active:
         return
 

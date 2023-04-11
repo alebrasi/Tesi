@@ -1,5 +1,5 @@
 import numpy as np
-from path_extraction.vector_utils import Vector
+from misc.vector import Vector
 
 
 class Path:
@@ -18,7 +18,8 @@ class Path:
         self._q = q
         self._res_err = res_err
 
-    def __lstsq_from_path(self, path_points):
+    @staticmethod
+    def __lstsq_from_path(path_points):
         """
         Fit a line, y = mx + q through the points in the array
         https://numpy.org/doc/stable/reference/generated/numpy.linalg.lstsq.html
@@ -78,8 +79,6 @@ class Path:
                               Default=-1 calculate all the slopes in the path 
         """
         tmp_line_path = []
-        line_vals = []
-        slope_paths = []
 
         lines = []
         it = 0

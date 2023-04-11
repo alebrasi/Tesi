@@ -1,6 +1,6 @@
 import networkx as nx
 
-from graph.graph_creation import PointType
+from graph.create import PointType
 from graph.plant import Plant
 from graph.root import Root
 

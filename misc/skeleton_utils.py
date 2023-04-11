@@ -1,7 +1,7 @@
 import queue
 import numpy as np
 import cv2 as cv
-from path_extraction.path import Path
+from misc.path import Path
 from enum import Enum
 
 
@@ -11,32 +11,22 @@ class PointType(Enum):
     SOURCE = 2
 
 
-# TODO: Spostare tutto nella classe RootsExtraction
-
-# Moore neighbor
 def root_neighbors(p):
     y, x = p
     return [(y - 1, x - 1), (y - 1, x), (y - 1, x + 1), (y, x - 1), (y, x), (y, x + 1), (y + 1, x - 1), (y + 1, x),
             (y + 1, x + 1)]
 
 
-def seed_neighbors(p):
-    y, x = p
-    return [(y, x - 1), (y, x + 1), (y + 1, x - 1), (y + 1, x), (y + 1, x + 1)]
-
-
 def idx(y, x, s=3):
     return (y * s) + x
 
 
-# TODO: Fare refactor
-def valid_neighbors(p, neighbor_func, skel, return_idx=False):
+def valid_neighbors(p, skel, return_idx=False):
     """
     Returns the valid node neighbors
 
     Parameters:
         p (tuple): The point
-        neighbor_func: Neighbouring function
         skel: The skeleton
         return_idx: Whether to return the index of the points
     """
@@ -44,7 +34,7 @@ def valid_neighbors(p, neighbor_func, skel, return_idx=False):
     def is_valid(p, h, w): return p[0] < h and p[0] >= 0 and p[1] < w and p[1] >= 0
 
     h, w = skel.shape[:2]
-    n = neighbor_func(p)
+    n = root_neighbors(p)
 
     valid = [skel[i] if is_valid(i, h, w) else False for i in n]
     valid[idx(1, 1)] = False
@@ -72,7 +62,7 @@ def is_tip(n, skel):
         n (tuple): The node coordinate in (y, x) format
         skel (numpy.ndarray): Numpy boolean matrix containing the skeleton of the plants
     """
-    return len(valid_neighbors(n, root_neighbors, skel)) == 1
+    return len(valid_neighbors(n, skel)) == 1
 
 
 def prune_skeleton_branches(seeds, skel, branch_threshold_len=6):
@@ -91,7 +81,7 @@ def prune_skeleton_branches(seeds, skel, branch_threshold_len=6):
     visited = set()
     tips = set()
     for s in seeds:
-        n1 = valid_neighbors(s, root_neighbors, skel)
+        n1 = valid_neighbors(s, skel)
         # Get a random neighbor (in this case the last one in the array) and use it as starting point.
         # Adds the others to the queue to explore
         cur_node = n1.pop()
@@ -108,7 +98,7 @@ def prune_skeleton_branches(seeds, skel, branch_threshold_len=6):
 
         # Pruning
         while True:
-            n = valid_neighbors(cur_node, root_neighbors, skel)
+            n = valid_neighbors(cur_node, skel)
             n = [i for i in n if i not in visited]
 
             visited.add(cur_node)
@@ -207,7 +197,6 @@ def prune2(skel, thr):
 
 
 def walk_to_node(skel, sender_p, start_p):
-    # TODO: Cambiare il nome alla funzione
     """
     Returns a list of points (path) that are between the point `p` and the first 
     available node or tip
@@ -220,15 +209,13 @@ def walk_to_node(skel, sender_p, start_p):
         path: A list containing the points walked
     """
 
-    # global skel
-
     prev_point = sender_p
     cur_point = start_p
     path = [sender_p]
     res = PointType.NODE
 
     while True:
-        n = valid_neighbors(cur_point, root_neighbors, skel)
+        n = valid_neighbors(cur_point, skel)
         # n.remove(prev_point)
         if prev_point in n: n.remove(prev_point)
 
@@ -336,7 +323,7 @@ def prune3(skel, branch_threshold, work_on_copy=True):
     Parameters:
         - skel (numpy.ndarray): Boolean numpy matrix that describes the skeleton
         - branch_threshold (int): Branch threshold
-        - work_on_copy (bool): Whether or not the prune must be done on the original skeleton
+        - work_on_copy (bool): Whether the prune must be done on the original skeleton
     """
     pruned = skel
     if work_on_copy:
@@ -346,7 +333,7 @@ def prune3(skel, branch_threshold, work_on_copy=True):
 
     for node in nodes_idx:
         node = tuple(node)
-        neighbors = valid_neighbors(node, root_neighbors, pruned)
+        neighbors = valid_neighbors(node, pruned)
         for n in neighbors:
             endpoint_type, path = walk_to_node(pruned, node, n)
             points = path.points[1:]  # Skips the first point, which is the node

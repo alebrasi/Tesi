@@ -1,13 +1,12 @@
 import cv2 as cv
 import numpy as np
 from skimage.exposure import match_histograms
-import matplotlib.pyplot as plt
 from skimage.morphology import thin, medial_axis
 
-from path_extraction.prune import prune3
+from misc.skeleton_utils import prune3
 from preprocess import locate_seed_line
 from refine_mask import locate_seeds, refine_region_below, refine_region_above
-from utils import find_file, show_image, DebugContext
+from misc.utils import find_file, show_image, DebugContext
 
 
 def refine(img, mask, reference_img, invert_mask=True, binarize_mask=True, threshold_mask_value=1):

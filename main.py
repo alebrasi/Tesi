@@ -9,10 +9,13 @@ import json
 import toml
 import os
 
+from graph.algorithm import extract
+from graph.create import create_graph
+from graph.draw import draw_graph
 from preprocess import locate_seed_line
-from utils import find_file, show_image, DebugContext
-from path_extraction.prune import prune3
-from graph_test import extraction
+from misc.utils import find_file, show_image, DebugContext
+from misc.skeleton_utils import prune3, PointType
+from graph.animation import animate
 from refine_mask import refine_region_above, refine_region_below, locate_seeds
 
 from rsml.rsmlwriter import RSMLWriter
@@ -28,6 +31,17 @@ def find_nearest(node, nodes):
     return nodes[p]
 
 
+def draw_final_graph(G, invert_xaxis=True):
+    color_map = {
+        PointType.NODE: 'lightgreen',
+        PointType.SOURCE: 'red',
+        PointType.TIP: 'orange'
+    }
+
+    node_color = [color_map[G.nodes[node]['node_type']] for node in G]
+    draw_graph(G, with_labels=True, node_color=node_color, node_size=20, invert_xaxis=invert_xaxis)
+
+
 def get_measures(plant_id, plant, distances):
     # Longest root
 
@@ -36,8 +50,8 @@ def get_measures(plant_id, plant, distances):
     measures['plant_id'] = plant_id
     roots = plant.roots
     longest_root = max(roots, key=lambda r: len(r.points))
-    print('Max root lenght: ', len(root.points))
-    measures['max_root_lenght'] = len(root.points)
+    print('Max root lenght: ', len(longest_root.points))
+    measures['max_root_lenght'] = len(longest_root.points)
 
     # Num roots
     print('Number of roots:', len(plant.roots))
@@ -284,13 +298,15 @@ show_image(tmp[:, ::-1, ::-1], dbg_ctx=dbg_ctx_post)
 print(seeds_pos)
 show_image(pruned_skeleton, dbg_ctx=dbg_ctx_post)
 
-plants = extraction(seeds_pos, pruned_skeleton, dist, orig_img)
+G = create_graph(seeds_pos, pruned_skeleton, dist)
+draw_final_graph(G)
+plants = extract(G)
+animate(orig_img, pruned_skeleton, plants)
 
 # Create Plant structure
 rootnav_plants = [RootNavPlant(idx, 'orzo', p.stem, p.seed_coords) for idx, p in enumerate(plants)]
 
-measures = {}
-measures['plants'] = []
+measures = {'plants': []}
 
 for i, plant in enumerate(plants):
     for root in plant.roots:

@@ -2,7 +2,7 @@ import cv2 as cv
 import numpy as np
 
 from preprocess import automatic_brightness_and_contrast
-from utils import show_image
+from misc.utils import show_image
 
 
 def refine_region_below(img, mask, dbg_ctx):
