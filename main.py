@@ -1,5 +1,3 @@
-import math
-
 import cv2 as cv
 from skimage.morphology import medial_axis, thin
 from skimage.exposure import match_histograms
@@ -46,23 +44,20 @@ def draw_final_graph(G, invert_xaxis=True):
 
 
 def get_measures(plant_id, plant, distances):
-    # Longest root
-
     measures = {}
 
     measures['plant_id'] = plant_id
     roots = plant.roots
+
+    # Longest root
     longest_root = max(roots, key=lambda r: len(r.points))
-    print('Max root lenght: ', len(longest_root.points))
     measures['max_root_lenght'] = len(longest_root.points)
 
     # Num roots
-    print('Number of roots:', len(plant.roots))
     measures['roots_number'] = len(plant.roots)
 
     # Stem angle
     angle = plant.stem.angle
-    print('Stem angle: ', angle)
     measures['stem_angle'] = round(angle, 2)
 
     # Root thickness
@@ -75,20 +70,17 @@ def get_measures(plant_id, plant, distances):
         mean_thickness = sum(tmp) / len(tmp)
         measures['roots_thickness'][i + 1] = round(mean_thickness, 2)
 
-        print(f'Root {i + 1}  mean thickness: ', mean_thickness)
         for i, point in enumerate(points):
             roots_thickness.append(tmp[i])
             y, x = point
             all_points.add((x, y))
 
     avg_roots_thickness = sum(roots_thickness) / len(roots_thickness)
-    print('Average roots thickness: ', avg_roots_thickness)
     measures['average_roots_thickness'] = round(avg_roots_thickness, 2)
 
     # Convex hull
     hull = cv.convexHull(np.array(list(all_points)))
     hull_area = cv.contourArea(hull)
-    print('Plant convex hull: ', hull_area)
     measures['convex_hull'] = round(hull_area, 2)
 
     return measures
@@ -97,7 +89,7 @@ def get_measures(plant_id, plant, distances):
 matplotlib.use('TKAgg')
 cv.setRNGSeed(123)
 random.seed(123)
-logger = Logger(Logger.LogLevel.NONE)
+logger = Logger(Logger.LogLevel.MEASURE)
 
 configs = toml.load('config.toml')
 
@@ -113,11 +105,6 @@ spline_parameters = configs['RSML']['spline']
 
 binarize_mask = configs['masks']['binarize']
 invert_mask = configs['masks']['invert']
-
-# spline_parameters = {
-#                        'tension': 0.5,
-#                        'spacing': 50 
-#                    }
 
 image_name = '1004'
 reference_hist_img_name = '995'
@@ -323,7 +310,9 @@ for i, plant in enumerate(plants):
                                spline_knot_spacing=spline_parameters['spacing']
                                )
         rootnav_plants[i].roots.append(tmp_root)
-    measures['plants'].append(get_measures(i + 1, plant, dist))
+    m = get_measures(i + 1, plant, dist)
+    Logger().log(m, Logger.LogLevel.MEASURE)
+    measures['plants'].append(m)
 
 # Dumps measures to json
 measures_output_dir = os.path.join(RSML_output_dir, f'{image_name}.json')

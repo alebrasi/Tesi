@@ -1,4 +1,3 @@
-import networkx as nx
 import copy
 from graph.root import Root
 
@@ -70,7 +69,7 @@ class Plant:
             root, highest_node = root
             node, neighbor, pos = highest_node
 
-            print('plant: ', node)
+            # print('plant: ', node)
 
             new_root = root.copy_until_node(node, neighbor)
 

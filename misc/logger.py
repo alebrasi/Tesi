@@ -29,9 +29,10 @@ class Logger(metaclass=SingletonMeta):
         POST_PROCESS = 1,
         REGION_BELOW = 2,
         LOCATE_SEEDS = 3,
-        BASIC = 4,
-        NONE = 5,
-        ALL = 6
+        MEASURE = 4,
+        BASIC = 5,
+        NONE = 6,
+        ALL = 7
 
         def __str__(self):
             return self.name

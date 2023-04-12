@@ -1,4 +1,4 @@
-from misc.skeleton_utils import valid_neighbors, is_tip, get_nodes, PointType, walk_to_node
+from misc.skeleton_utils import valid_neighbors, get_nodes, PointType, walk_to_node
 from misc.path import Path
 from misc.vector import Vector
 
