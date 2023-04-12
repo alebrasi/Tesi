@@ -1,5 +1,7 @@
 import cv2 as cv
 import numpy as np
+
+from misc.logger import Logger
 from misc.utils import show_image
 import math
 
@@ -42,6 +44,7 @@ def clahe_bgr(img, clip, grid_size):
 
     return l
 
+
 # Automatic brightness and contrast optimization with optional histogram clipping
 # https://stackoverflow.com/questions/56905592/automatic-contrast-and-brightness-adjustment-of-a-color-photo-of-a-sheet-of-pape
 def automatic_brightness_and_contrast(image, mask, clip_hist_percent=1):
@@ -49,7 +52,6 @@ def automatic_brightness_and_contrast(image, mask, clip_hist_percent=1):
     if len(image.shape) == 3:
         gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
     mean, std = cv.meanStdDev(gray[mask == 255])
-    print(f'Mean: {mean}, Std: {std[0][0]}')
 
     # hist = cv.calcHist([gray], [0], mask, [256], [0, 256])
     # plt.plot(hist)
@@ -71,7 +73,7 @@ def automatic_brightness_and_contrast(image, mask, clip_hist_percent=1):
     clip_hist_percent /= 2.0
 
     # Locate left cut
-    minimum_gray = 0  # TODO: Provare con 0 o 1
+    minimum_gray = 0
     while accumulator[minimum_gray] < clip_hist_percent:
         minimum_gray += 1
 
@@ -115,21 +117,17 @@ def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10, dbg_ctx=
     right_pt: a tuple containing the right point of the seed line in (x, y) format
     """
 
-    orig_img = img.copy()
-    offset_x = offset_y = 0
     img = ~cv.cvtColor(img, cv.COLOR_BGR2GRAY)
     show_image(img, dbg_ctx=dbg_ctx)
 
-    # TODO: Provare diversi tileGridSize
     clahe = cv.createCLAHE(clipLimit=2.0, tileGridSize=(60, 60))
     img = clahe.apply(img)
     show_image(img, dbg_ctx=dbg_ctx)
-    if rough_location != None:
+    if rough_location is not None:
         top_left_pt, bottom_right_pt = rough_location[0], rough_location[1]
         tl_y, tl_x = top_left_pt
         br_y, br_x = bottom_right_pt
         img = img[tl_y:br_y, tl_x:br_x]
-        offset_x, offset_y = tl_x, tl_y
     show_image(img, dbg_ctx=dbg_ctx)
     img = cv.GaussianBlur(img, (5, 5), 0)
     thresholded_img = cv.adaptiveThreshold(img, 255, cv.ADAPTIVE_THRESH_MEAN_C,
@@ -149,7 +147,7 @@ def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10, dbg_ctx=
 
     rho, theta, _ = line
 
-    if dbg_ctx != None and dbg_ctx.is_active:
+    if dbg_ctx is not None and dbg_ctx.is_active:
         cdst = cv.cvtColor(horizontal_lines, cv.COLOR_GRAY2BGR)
         a = math.cos(theta)
         b = math.sin(theta)
@@ -163,14 +161,14 @@ def locate_seed_line(img, rough_location=None, seed_line_offset_px=-10, dbg_ctx=
     h, w = horizontal_lines.shape[:2]
 
     rot_angle = math.degrees(theta) - 90.0
-    print(rot_angle)
+    Logger().log(f'Inclination: {rot_angle}°', Logger.LogLevel.SEED_LINE)
 
     M = cv.getRotationMatrix2D((h // 2, w // 2), rot_angle, 1.0)
 
     roi_offset_y, _ = rough_location[0]
 
     y = int(rho) + roi_offset_y + seed_line_offset_px
-    print(theta, " ", rho, " ", y, " ", rot_angle)
+    # print(theta, " ", rho, " ", y, " ", rot_angle)
 
     pt1 = (0, y)
     pt2 = (w - 1, y)

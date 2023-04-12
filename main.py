@@ -1,3 +1,5 @@
+import math
+
 import cv2 as cv
 from skimage.morphology import medial_axis, thin
 from skimage.exposure import match_histograms
@@ -12,6 +14,7 @@ import os
 from graph.algorithm import extract
 from graph.create import create_graph
 from graph.draw import draw_graph
+from misc.logger import Logger
 from preprocess import locate_seed_line
 from misc.utils import find_file, show_image, DebugContext
 from misc.skeleton_utils import prune3, PointType
@@ -58,8 +61,9 @@ def get_measures(plant_id, plant, distances):
     measures['roots_number'] = len(plant.roots)
 
     # Stem angle
-    print('Stem angle: ', plant.stem.angle)
-    measures['stem_angle'] = round(plant.stem.angle, 2)
+    angle = plant.stem.angle
+    print('Stem angle: ', angle)
+    measures['stem_angle'] = round(angle, 2)
 
     # Root thickness
     roots_thickness = []
@@ -93,6 +97,7 @@ def get_measures(plant_id, plant, distances):
 matplotlib.use('TKAgg')
 cv.setRNGSeed(123)
 random.seed(123)
+logger = Logger(Logger.LogLevel.NONE)
 
 configs = toml.load('config.toml')
 
@@ -156,8 +161,8 @@ mask_path = find_file(mask_path, f'{image_name}.{mask_extension}')
 img_path = find_file(image_path, f'{image_name}.{image_extension}')
 reference_hist_path = find_file(image_path, f'{reference_hist_img_name}.{image_extension}')
 
-print(f'Image path: {img_path}')
-print(f'Mask path: {mask_path}')
+Logger().log(f'Image path: {img_path}', Logger.LogLevel.BASIC)
+Logger().log(f'Mask path: {mask_path}', Logger.LogLevel.BASIC)
 
 img = cv.imread(img_path)
 mask = cv.imread(mask_path, cv.COLOR_BGR2GRAY)
@@ -178,7 +183,6 @@ h, w = img.shape[:2]
 seed_line_roi = [[148, 0], [300, w - 1]]
 
 M, left_pt, right_pt = locate_seed_line(img, seed_line_roi, 5, dbg_ctx=dbg_ctx_seed_line)
-
 # Alignment in order to subdivide the above and below regions with even height
 # Must be done for image pyramids upscale
 if ((h - left_pt[1]) % 2) == 1:
@@ -295,7 +299,7 @@ for bb in seeds_bb:
         tmp[a, b, ...] = [0, 0, 255]
         seeds_pos.append((a, b))
 show_image(tmp[:, ::-1, ::-1], dbg_ctx=dbg_ctx_post)
-print(seeds_pos)
+Logger().log(f'Seeds found: {seeds_pos}', Logger.LogLevel.LOCATE_SEEDS)
 show_image(pruned_skeleton, dbg_ctx=dbg_ctx_post)
 
 G = create_graph(seeds_pos, pruned_skeleton, dist)

@@ -6,6 +6,15 @@ from graph.create import PointType
 def flat_map(f, xs): return (y for ys in xs for y in f(ys))
 
 
+def mirror_angle_y_axis(angle):
+    rad = math.radians(angle)
+    c = math.cos(rad)
+    s = math.sin(rad)
+    a = math.atan2(s, -c)
+    a = math.degrees(a)
+    return a + 360 * (1 if a < 0 else 0)
+
+
 class Root:
     G = None
 
@@ -27,7 +36,7 @@ class Root:
 
     @property
     def angle(self):
-        return self._prev_angle_ema
+        return mirror_angle_y_axis(self._prev_angle_ema)
 
     def __str__(self):
         return f'Start edge: {self._start_edge} \n \

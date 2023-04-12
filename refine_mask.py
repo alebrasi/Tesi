@@ -1,6 +1,7 @@
 import cv2 as cv
 import numpy as np
 
+from misc.logger import Logger
 from preprocess import automatic_brightness_and_contrast
 from misc.utils import show_image
 
@@ -69,20 +70,14 @@ def locate_seeds(img, dbg_ctx):
             width, height = stat[cv.CC_STAT_WIDTH], stat[cv.CC_STAT_HEIGHT]
             if width < 40 or height < 40:
                 continue
-            xs = xx[labels == i]
-            ys = yy[labels == i]
 
-            # pos = np.column_stack((xs, ys))
-            # rect = cv.minAreaRect(pos)
-            # box = np.int0(cv.boxPoints(rect))
-            # center, _, _ = rect
             candidate_seeds_box.append((x, y, width, height))
 
-            print(f'Seed {i} BB: ')
-            print(f'\t x: {x}')
-            print(f'\t y: {y}')
-            print(f'\t w: {width}')
-            print(f'\t h: {height}')
+            Logger().log(f'Seed {i} BB: ', Logger.LogLevel.LOCATE_SEEDS)
+            Logger().log(f'\t x: {x}', Logger.LogLevel.LOCATE_SEEDS)
+            Logger().log(f'\t y: {y}', Logger.LogLevel.LOCATE_SEEDS)
+            Logger().log(f'\t w: {width}', Logger.LogLevel.LOCATE_SEEDS)
+            Logger().log(f'\t h: {height}', Logger.LogLevel.LOCATE_SEEDS)
 
             cv.rectangle(img, (x, y), (x + width, y + height), (0, 255, 0), 1)
             # cv.drawContours(img, [box], 0, (0, 0, 255), 1)
