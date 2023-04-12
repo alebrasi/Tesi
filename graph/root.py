@@ -15,6 +15,14 @@ def mirror_angle_y_axis(angle):
     return a + 360 * (1 if a < 0 else 0)
 
 
+def calc_ema(ema, angle, alpha):
+    return (alpha * angle) + ((1 - alpha) * ema)
+
+
+def map_range(x, in_min, in_max, out_min, out_max):
+    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
+
+
 class Root:
     G = None
 
@@ -25,7 +33,7 @@ class Root:
     def __init__(self, plant, start_edge, ema_alpha=0.20):
         self._edges = set()
         self._cur_edge = None
-        self._prev_angle_ema = None
+        self._angle_ema = None
         self._ordered_edges = []
         self._ema_alpha = ema_alpha
         self._start_edge = start_edge
@@ -36,7 +44,7 @@ class Root:
 
     @property
     def angle(self):
-        return mirror_angle_y_axis(self._prev_angle_ema)
+        return mirror_angle_y_axis(self._angle_ema)
 
     def __str__(self):
         return f'Start edge: {self._start_edge} \n \
@@ -96,7 +104,7 @@ class Root:
 
         return min(non_walked_nodes,
                    key=lambda n: n[2][0],  # key = y coordinate of 'pos'
-                   default=None)  # [0]                   # TODO: Sistemare.  Grabs only the node
+                   default=None)  # [0]
 
     def copy_until_node(self, node, node_neighbor):
         tmp_root = Root(self._plant, self._start_edge)
@@ -147,15 +155,8 @@ class Root:
     def cur_edge(self):
         return self._cur_edge
 
-    def _calc_ema(self, ema, angle, alpha):
-        return (alpha * angle) + ((1 - alpha) * ema)
-
-    def _map_range(self, x, in_min, in_max, out_min, out_max):
-        return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
-
     def _update_angle_EMA(self, edge):
         """
-        # TODO Riscrivere meglio la doc
         Calculate the exponential moving average of the angle
         https://www.investopedia.com/terms/e/ema.asp
         https://towardsdatascience.com/moving-averages-in-python-16170e20f6c
@@ -163,7 +164,6 @@ class Root:
         Versione utilizzata:
         https://blog.mbedded.ninja/programming/signal-processing/digital-filters/exponential-moving-average-ema-filter/
         """
-        # TODO: Se funziona, rinominare self._prev_angle_ema in self._angle_ema
 
         G = type(self).G
         cur_angle = G.edges[edge]['weight']
@@ -171,14 +171,14 @@ class Root:
         edge_len = G.edges[edge]['length']
         ema_alpha = 0.8
         if edge_len < 25:
-            ema_alpha = self._map_range(edge_len, 1, 25, 0.01, 0.8)
+            ema_alpha = map_range(edge_len, 1, 25, 0.01, 0.8)
 
-        if self._prev_angle_ema is None:
-            self._prev_angle_ema = cur_angle
+        if self._angle_ema is None:
+            self._angle_ema = cur_angle
             return cur_angle
 
-        cur_angle_ema = self._calc_ema(self._prev_angle_ema, cur_angle, ema_alpha)
-        self._prev_angle_ema = cur_angle_ema
+        cur_angle_ema = calc_ema(self._angle_ema, cur_angle, ema_alpha)
+        self._angle_ema = cur_angle_ema
 
     def _compare_neighbor(self, node, neighbor):
         G = type(self).G
@@ -186,7 +186,7 @@ class Root:
             return float('inf')
 
         edge = (node, neighbor)
-        return math.fabs(self._prev_angle_ema - G.edges[edge]['weight'])
+        return math.fabs(self._angle_ema - G.edges[edge]['weight'])
 
     def _node_neighbors(self, edge):
         """
